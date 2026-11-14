@@ -97,7 +97,7 @@ input[type="number"] { -moz-appearance: textfield; }
   100% { transform: scale(1); }
 }
 .paid-pop { animation: paid-pop 1.6s ease-out; }
-.paid-pop * { transition: color 1.2s; }
+.paid-pop, .paid-pop * { color: #fff !important; }
 @keyframes toast-in {
   0% { transform: translate(-50%, -24px); opacity: 0; }
   12% { transform: translate(-50%, 0); opacity: 1; }
