@@ -17,7 +17,7 @@ function CobrarForm() {
   const [table, setTable] = useState(initialTable || 1);
   const [concept, setConcept] = useState("");
   const [subtotal, setSubtotal] = useState("");
-  const [tip, setTip] = useState<number>(restaurant ? 10 : 0);
+  const [tip, setTip] = useState<number>(10);
   const [customTip, setCustomTip] = useState("");
   const [splitMode, setSplitMode] = useState(!restaurant);
   const [names, setNames] = useState<string[]>(["", "", ""]);
