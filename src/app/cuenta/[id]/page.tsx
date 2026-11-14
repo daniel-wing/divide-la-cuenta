@@ -73,7 +73,9 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
           const pay = b.payments[r];
           return {
             key: `${r}-${Date.now()}`,
-            text: `${p?.name ?? "Alguien"} pagó ${mxn.format(p?.amount ?? pay.amount)} con ${METHOD_LABEL[pay.method ?? "codi"]}`,
+            text: `${p?.name ?? "Alguien"} pagó ${mxn.format(p?.amount ?? pay.amount)} ${
+              (pay.method ?? "codi") === "codi" ? "con CoDi" : `en ${METHOD_LABEL[pay.method!].toLowerCase()}`
+            }`,
           };
         });
         setToasts((t) => [...t, ...items]);
@@ -261,7 +263,11 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                     <span className="text-muted">
                       {" "}
                       · {dur(pay.paidAt - bill.createdAt)} después de generar su QR
-                      {lag !== null && lag >= 0 && lag < 120000 ? ` · pey avisó en ${dur(lag)}` : " · confirmado por webhook de pey"}
+                      {bill.demo
+                        ? " · pago simulado (modo demo)"
+                        : lag !== null && lag >= 0 && lag < 120000
+                          ? ` · pey avisó en ${dur(lag)}`
+                          : " · confirmado por webhook de pey"}
                     </span>
                   )}
                 </li>
