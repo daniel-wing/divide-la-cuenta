@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Divide la cuenta",
+  title: "Wingman Dinner · Cobros CoDi",
   description: "Divide una cuenta y cobra a cada quien con CoDi",
 };
 

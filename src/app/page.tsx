@@ -1,122 +1,105 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { RESTAURANT_NAME } from "@/lib/restaurant";
+import type { TableSummary } from "./api/tables/route";
+
+const mxn = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+
+const STYLE: Record<TableSummary["status"], { label: string; card: string; badge: string }> = {
+  libre: { label: "Libre", card: "border-neutral-800", badge: "bg-neutral-800 text-neutral-300" },
+  ocupada: { label: "Ocupada", card: "border-neutral-700", badge: "bg-sky-900 text-sky-200" },
+  cobrando: { label: "Cobrando", card: "border-amber-500", badge: "bg-amber-500 text-black" },
+  pagada: { label: "Pagada", card: "border-emerald-600 bg-emerald-950/40", badge: "bg-emerald-600 text-white" },
+};
 
 export default function Home() {
-  const router = useRouter();
-  const [concept, setConcept] = useState("");
-  const [total, setTotal] = useState("");
-  const [names, setNames] = useState<string[]>(["", "", ""]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [tables, setTables] = useState<TableSummary[] | null>(null);
 
-  const filled = names.filter((n) => n.trim()).length;
-  const perPerson = filled > 0 && Number(total) > 0 ? Number(total) / filled : 0;
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/bills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ concept, total: Number(total), names }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Algo salió mal");
-      router.push(`/cuenta/${data.id}`);
-    } catch (err) {
-      setError((err as Error).message);
-      setLoading(false);
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      const res = await fetch("/api/tables", { cache: "no-store" });
+      if (alive && res.ok) setTables(await res.json());
     }
-  }
+    load();
+    const t = setInterval(load, 3000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-5 py-12">
-      <p className="text-sm font-semibold uppercase tracking-widest text-emerald-600">Pagos CoDi con pey</p>
-      <h1 className="mt-2 text-4xl font-bold tracking-tight">Divide la cuenta</h1>
-      <p className="mt-3 text-neutral-500">
-        Cada quien paga su parte desde su banco escaneando un QR. La pantalla se actualiza sola, sin pedir
-        capturas.
-      </p>
-
-      <form onSubmit={submit} className="mt-10 space-y-6">
-        <label className="block">
-          <span className="text-sm font-medium">Concepto</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-neutral-300 bg-transparent px-4 py-3 outline-none focus:border-emerald-500"
-            placeholder="Cena de viernes"
-            value={concept}
-            onChange={(e) => setConcept(e.target.value)}
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-medium">Total (MXN)</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-neutral-300 bg-transparent px-4 py-3 text-2xl outline-none focus:border-emerald-500"
-            type="number"
-            step="0.01"
-            min="0.01"
-            inputMode="decimal"
-            placeholder="0.00"
-            value={total}
-            onChange={(e) => setTotal(e.target.value)}
-            required
-          />
-        </label>
-
+    <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <span className="text-sm font-medium">Personas</span>
-          <div className="mt-2 space-y-2">
-            {names.map((n, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  className="w-full rounded-xl border border-neutral-300 bg-transparent px-4 py-3 outline-none focus:border-emerald-500"
-                  placeholder={`Persona ${i + 1}`}
-                  value={n}
-                  onChange={(e) => setNames(names.map((x, j) => (j === i ? e.target.value : x)))}
-                />
-                {names.length > 2 && (
-                  <button
-                    type="button"
-                    aria-label="Quitar"
-                    className="rounded-xl border border-neutral-300 px-4 text-neutral-500 hover:text-red-600"
-                    onClick={() => setNames(names.filter((_, j) => j !== i))}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {names.length < 20 && (
-            <button
-              type="button"
-              className="mt-3 text-sm font-medium text-emerald-600 hover:underline"
-              onClick={() => setNames([...names, ""])}
-            >
-              + Agregar persona
-            </button>
-          )}
+          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-500">Cobros CoDi con pey</p>
+          <h1 className="mt-1 text-4xl font-bold tracking-tight">{RESTAURANT_NAME}</h1>
+          <p className="mt-2 text-neutral-400">Mesas del turno. Toca una mesa para cobrar o ver su cuenta.</p>
         </div>
+        <Link href="/cobrar" className="text-sm font-medium text-emerald-500 hover:underline">
+          ¿Sin restaurante? Dividir entre amigos
+        </Link>
+      </div>
 
-        {perPerson > 0 && (
-          <p className="text-neutral-500">
-            Aproximadamente <b className="text-current">${perPerson.toFixed(2)}</b> por persona
-          </p>
-        )}
-        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-red-700">{error}</p>}
-
-        <button
-          disabled={loading}
-          className="w-full rounded-xl bg-emerald-600 px-4 py-4 text-lg font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-        >
-          {loading ? "Generando cobros..." : "Generar cobros"}
-        </button>
-      </form>
+      {!tables ? (
+        <p className="mt-10 text-neutral-500">Cargando mesas...</p>
+      ) : (
+        <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+          {tables.map((t) => {
+            const s = STYLE[t.status];
+            const inner = (
+              <>
+                <div className="flex items-start justify-between">
+                  <p className="text-2xl font-bold">Mesa {t.table}</p>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${s.badge}`}>{s.label}</span>
+                </div>
+                <div className="mt-6 text-sm text-neutral-400">
+                  {t.amount !== undefined && <p className="text-xl font-semibold text-current">{mxn.format(t.amount)}</p>}
+                  {t.guests !== undefined && (
+                    <p>
+                      {t.live && t.paidCount !== undefined
+                        ? `${t.paidCount} de ${t.guests} pagaron`
+                        : `${t.guests} ${t.guests === 1 ? "persona" : "personas"}`}
+                    </p>
+                  )}
+                  {t.status === "libre" && <p>Disponible</p>}
+                </div>
+                {t.live && t.status === "cobrando" && (
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-800">
+                    <div
+                      className="h-full bg-amber-500 transition-all"
+                      style={{ width: `${Math.round(((t.paidCount ?? 0) / (t.guests ?? 1)) * 100)}%` }}
+                    />
+                  </div>
+                )}
+              </>
+            );
+            const cls = `block min-h-40 rounded-3xl border p-5 transition-colors ${s.card}`;
+            if (t.live && t.billId) {
+              return (
+                <Link key={t.table} href={`/cuenta/${t.billId}`} className={`${cls} hover:border-emerald-400`}>
+                  {inner}
+                </Link>
+              );
+            }
+            if (t.status === "libre" || t.status === "ocupada") {
+              return (
+                <Link key={t.table} href={`/cobrar?mesa=${t.table}`} className={`${cls} hover:border-emerald-400`}>
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <div key={t.table} className={cls}>
+                {inner}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </main>
   );
 }
