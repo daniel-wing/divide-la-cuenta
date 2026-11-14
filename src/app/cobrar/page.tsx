@@ -241,7 +241,7 @@ function CobrarForm() {
         <div className="fixed inset-x-0 bottom-0 bg-bg p-4 md:static md:bg-transparent md:p-0">
           <button
             disabled={loading}
-            className="h-14 w-full rounded-[10px] bg-fg text-[17px] font-semibold text-bg transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="h-14 w-full rounded-[10px] bg-accent text-[17px] font-semibold text-on-accent transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {loading ? "Generando QR..." : base > 0 ? `Cobrar ${mxn.format(total)}` : "Cobrar"}
           </button>
