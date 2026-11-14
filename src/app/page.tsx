@@ -2,17 +2,68 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { RESTAURANT_NAME } from "@/lib/restaurant";
 import type { TableSummary } from "./api/tables/route";
 
 const mxn = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
 
-const STYLE: Record<TableSummary["status"], { label: string; card: string; badge: string }> = {
-  libre: { label: "Libre", card: "border-neutral-800", badge: "bg-neutral-800 text-neutral-300" },
-  ocupada: { label: "Ocupada", card: "border-neutral-700", badge: "bg-sky-900 text-sky-200" },
-  cobrando: { label: "Cobrando", card: "border-amber-500", badge: "bg-amber-500 text-black" },
-  pagada: { label: "Pagada", card: "border-emerald-600 bg-emerald-950/40", badge: "bg-emerald-600 text-white" },
+const STATUS: Record<TableSummary["status"], { label: string; dot: string; text: string }> = {
+  libre: { label: "Libre", dot: "bg-faint", text: "text-faint" },
+  ocupada: { label: "Ocupada", dot: "bg-fg", text: "text-fg" },
+  cobrando: { label: "Cobrando", dot: "bg-cobrando", text: "text-cobrando" },
+  pagada: { label: "Pagada", dot: "bg-pagada", text: "text-pagada" },
 };
+
+function Tile({ t }: { t: TableSummary }) {
+  const s = STATUS[t.status];
+  const base =
+    "relative flex min-h-[148px] flex-col justify-between overflow-hidden rounded-[14px] border p-5 transition-[transform,border-color] active:scale-[.99]";
+  const look =
+    t.status === "libre"
+      ? "border-line bg-transparent"
+      : t.status === "pagada"
+        ? "border-line bg-pagada-tint"
+        : "card";
+  const clickable = t.live || t.status === "libre" || t.status === "ocupada";
+  const inner = (
+    <>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[13px] text-muted">Mesa</p>
+          <p className={`text-[40px] font-semibold leading-none ${t.status === "libre" ? "text-faint" : ""}`}>{t.table}</p>
+        </div>
+        <span className={`flex items-center gap-2 text-[13px] font-medium ${s.text}`}>
+          <span className={`h-2 w-2 rounded-full ${s.dot}`} />
+          {s.label}
+        </span>
+      </div>
+      {t.amount !== undefined && (
+        <div className="mt-4">
+          <p className="money text-[22px]">{mxn.format(t.amount)}</p>
+          <p className="text-[15px] text-muted">
+            {t.live && t.paidCount !== undefined
+              ? `${t.paidCount} de ${t.guests} pagaron`
+              : `${t.guests} ${t.guests === 1 ? "persona" : "personas"}`}
+          </p>
+        </div>
+      )}
+      {t.status === "cobrando" && (
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-cobrando-tint">
+          <div
+            className="h-full bg-cobrando transition-all duration-500"
+            style={{ width: `${Math.max(8, Math.round(((t.paidCount ?? 0) / (t.guests ?? 1)) * 100))}%` }}
+          />
+        </div>
+      )}
+    </>
+  );
+  if (!clickable) return <div className={`${base} ${look}`}>{inner}</div>;
+  const href = t.live && t.billId ? `/cuenta/${t.billId}` : `/cobrar?mesa=${t.table}`;
+  return (
+    <Link href={href} className={`${base} ${look} hover:border-fg`}>
+      {inner}
+    </Link>
+  );
+}
 
 export default function Home() {
   const [tables, setTables] = useState<TableSummary[] | null>(null);
@@ -31,75 +82,42 @@ export default function Home() {
     };
   }, []);
 
+  const open = tables?.filter((t) => t.status === "ocupada" || t.status === "cobrando") ?? [];
+  const porCobrar = open.reduce((s, t) => s + (t.amount ?? 0), 0);
+  const cobrado = tables?.filter((t) => t.status === "pagada").reduce((s, t) => s + (t.amount ?? 0), 0) ?? 0;
+
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto w-full max-w-6xl flex-1 px-5 pt-8">
+      <section className="flex flex-wrap items-end gap-x-12 gap-y-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-500">Cobros CoDi con pey</p>
-          <h1 className="mt-1 text-4xl font-bold tracking-tight">{RESTAURANT_NAME}</h1>
-          <p className="mt-2 text-neutral-400">Mesas del turno. Toca una mesa para cobrar o ver su cuenta.</p>
+          <p className="text-[13px] text-muted">Por cobrar</p>
+          <p className="money text-[48px] font-semibold leading-tight">{mxn.format(porCobrar)}</p>
         </div>
-        <Link href="/cobrar" className="text-sm font-medium text-emerald-500 hover:underline">
-          ¿Sin restaurante? Dividir entre amigos
-        </Link>
-      </div>
+        <div>
+          <p className="text-[13px] text-muted">Cobrado</p>
+          <p className="money text-[22px] text-pagada">{mxn.format(cobrado)}</p>
+        </div>
+        <div>
+          <p className="text-[13px] text-muted">Mesas abiertas</p>
+          <p className="money text-[22px]">{open.length}</p>
+        </div>
+      </section>
+
+      <p className="mt-8 text-[15px] text-muted">Toca una mesa para cobrar.</p>
 
       {!tables ? (
-        <p className="mt-10 text-neutral-500">Cargando mesas...</p>
+        <p className="mt-6 text-muted">Cargando mesas...</p>
       ) : (
-        <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-          {tables.map((t) => {
-            const s = STYLE[t.status];
-            const inner = (
-              <>
-                <div className="flex items-start justify-between">
-                  <p className="text-2xl font-bold">Mesa {t.table}</p>
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${s.badge}`}>{s.label}</span>
-                </div>
-                <div className="mt-6 text-sm text-neutral-400">
-                  {t.amount !== undefined && <p className="text-xl font-semibold text-current">{mxn.format(t.amount)}</p>}
-                  {t.guests !== undefined && (
-                    <p>
-                      {t.live && t.paidCount !== undefined
-                        ? `${t.paidCount} de ${t.guests} pagaron`
-                        : `${t.guests} ${t.guests === 1 ? "persona" : "personas"}`}
-                    </p>
-                  )}
-                  {t.status === "libre" && <p>Disponible</p>}
-                </div>
-                {t.live && t.status === "cobrando" && (
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-800">
-                    <div
-                      className="h-full bg-amber-500 transition-all"
-                      style={{ width: `${Math.round(((t.paidCount ?? 0) / (t.guests ?? 1)) * 100)}%` }}
-                    />
-                  </div>
-                )}
-              </>
-            );
-            const cls = `block min-h-40 rounded-3xl border p-5 transition-colors ${s.card}`;
-            if (t.live && t.billId) {
-              return (
-                <Link key={t.table} href={`/cuenta/${t.billId}`} className={`${cls} hover:border-emerald-400`}>
-                  {inner}
-                </Link>
-              );
-            }
-            if (t.status === "libre" || t.status === "ocupada") {
-              return (
-                <Link key={t.table} href={`/cobrar?mesa=${t.table}`} className={`${cls} hover:border-emerald-400`}>
-                  {inner}
-                </Link>
-              );
-            }
-            return (
-              <div key={t.table} className={cls}>
-                {inner}
-              </div>
-            );
-          })}
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {tables.map((t) => (
+            <Tile key={t.table} t={t} />
+          ))}
         </div>
       )}
+
+      <Link href="/cobrar" className="mt-8 inline-block text-[15px] text-muted underline underline-offset-4 hover:text-fg">
+        ¿Sin restaurante? Dividir entre amigos
+      </Link>
     </main>
   );
 }

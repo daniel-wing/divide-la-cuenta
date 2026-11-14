@@ -1,33 +1,86 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --surface-2: #efece5;
+  --line: #e2ded5;
+  --fg: #1a1915;
+  --muted: #6b675e;
+  --faint: #9a958a;
+  --cobrando: #b45309;
+  --cobrando-tint: #fbf0dc;
+  --pagada: #0f7b4f;
+  --pagada-tint: #e6f4ec;
+  --danger: #c2410c;
+  --shadow: 0 1px 2px rgba(26, 25, 21, 0.06);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #111110;
+  --surface: #1a1a18;
+  --surface-2: #232320;
+  --line: #2e2e2a;
+  --fg: #f2f0ea;
+  --muted: #a19d93;
+  --faint: #6f6c64;
+  --cobrando: #f5a524;
+  --cobrando-tint: #2a2010;
+  --pagada: #3dd68c;
+  --pagada-tint: #12261c;
+  --danger: #f97066;
+  --shadow: none;
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  
-  
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-cobrando: var(--cobrando);
+  --color-cobrando-tint: var(--cobrando-tint);
+  --color-pagada: var(--pagada);
+  --color-pagada-tint: var(--pagada-tint);
+  --color-danger: var(--danger);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
 }
 
-@keyframes pop {
-  0% { transform: scale(0.8); opacity: 0; }
-  60% { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(1); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
 }
-.pop { animation: pop 0.5s ease-out; }
+
+.money {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes draw {
+  from { stroke-dashoffset: 30; }
+  to { stroke-dashoffset: 0; }
+}
+.check-draw path {
+  stroke-dasharray: 30;
+  animation: draw 350ms ease-out forwards;
+}
+
+/* Remove number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
