@@ -11,7 +11,7 @@ export const FAKE_TABLES: Record<number, FakeStatus> = {
   3: { status: "libre" },
   4: { status: "pagada", amount: 1260, guests: 4 },
   5: { status: "ocupada", amount: 2310, guests: 6 },
-  6: { status: "libre" },
+  6: { status: "ocupada", amount: 1600, guests: 4 },
   7: { status: "libre" },
   8: { status: "ocupada", amount: 530, guests: 1 },
 };
