@@ -90,3 +90,18 @@ body {
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; }
+
+@keyframes paid-pop {
+  0% { transform: scale(1); background: var(--pagada); }
+  30% { transform: scale(1.04); background: var(--pagada); }
+  100% { transform: scale(1); }
+}
+.paid-pop { animation: paid-pop 1.6s ease-out; }
+.paid-pop, .paid-pop * { color: #fff !important; }
+@keyframes toast-in {
+  0% { transform: translate(-50%, -24px); opacity: 0; }
+  12% { transform: translate(-50%, 0); opacity: 1; }
+  88% { transform: translate(-50%, 0); opacity: 1; }
+  100% { transform: translate(-50%, -12px); opacity: 0; }
+}
+.toast { animation: toast-in 4.2s ease-out forwards; }
