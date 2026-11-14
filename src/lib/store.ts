@@ -95,3 +95,13 @@ export async function claimTransaction(transactionId: string): Promise<boolean> 
 export async function markPaid(billId: string, numRef: string, payment: Payment): Promise<boolean> {
   return hsetnx(`paid:${billId}`, numRef, JSON.stringify(payment));
 }
+
+/** Restaurant tables: remember which bill is open on each table. */
+export async function setTableBill(table: number, billId: string) {
+  await set(`table:${table}`, billId);
+}
+
+export async function getTableBill(table: number): Promise<BillView | null> {
+  const id = await get(`table:${table}`);
+  return id ? getBill(id) : null;
+}
