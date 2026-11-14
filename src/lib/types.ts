@@ -13,6 +13,7 @@ export type Payment = {
   transactionId: string;
   amount: number;
   method?: PaymentMethod; // missing = codi (older records)
+  receivedAt?: number; // unix ms when our server got pey's webhook
 };
 
 export type Bill = {
