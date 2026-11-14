@@ -3,19 +3,21 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #f6f4ef;
+  --bg: #f4f8fd;
   --surface: #ffffff;
-  --surface-2: #efece5;
-  --line: #e2ded5;
-  --fg: #1a1915;
-  --muted: #6b675e;
-  --faint: #9a958a;
-  --cobrando: #b45309;
-  --cobrando-tint: #fbf0dc;
-  --pagada: #0f7b4f;
-  --pagada-tint: #e6f4ec;
-  --danger: #c2410c;
-  --shadow: 0 1px 2px rgba(26, 25, 21, 0.06);
+  --surface-2: #edf2f9;
+  --line: #dde5ef;
+  --fg: #0f1b2d;
+  --muted: #5a6b82;
+  --faint: #98a6b8;
+  --cobrando: #ea580c;
+  --cobrando-tint: #fff0e6;
+  --pagada: #1d4ed8;
+  --pagada-tint: #e8f0fe;
+  --danger: #dc2626;
+  --accent: #2563eb;
+  --on-accent: #ffffff;
+  --shadow: 0 1px 2px rgba(15, 27, 45, 0.06), 0 4px 12px rgba(15, 27, 45, 0.04);
   color-scheme: light;
 }
 
@@ -32,6 +34,8 @@
   --pagada: #3dd68c;
   --pagada-tint: #12261c;
   --danger: #f97066;
+  --accent: #f2f0ea;
+  --on-accent: #111110;
   --shadow: none;
   color-scheme: dark;
 }
@@ -49,6 +53,8 @@
   --color-pagada: var(--pagada);
   --color-pagada-tint: var(--pagada-tint);
   --color-danger: var(--danger);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
