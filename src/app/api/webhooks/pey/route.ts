@@ -53,6 +53,7 @@ export async function POST(req: Request) {
     paidAt: (event.datePaid ?? Date.now() / 1000) * 1000,
     transactionId: event.transactionId,
     amount: event.amount,
+    receivedAt: Date.now(),
   });
   return NextResponse.json({ ok: true });
 }
