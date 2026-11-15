@@ -124,8 +124,8 @@ export default function Home() {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pt-10">
         <h1 className="max-w-[560px] text-center text-[30px] font-extrabold leading-tight md:text-[40px]">
-          Cada quien paga su parte con CoDi.
-          <span className="block text-pagada">Sin terminal y sin comisión por cobro.</span>
+          Dividan la cuenta con CoDi.
+          <span className="block text-pagada">Sin comisiones.</span>
         </h1>
         <div className="mt-10 w-full">
           <PinForm onUnlock={unlock} small />
@@ -162,9 +162,6 @@ export default function Home() {
         <button onClick={lock} className="h-10 rounded-[10px] bg-surface-2 px-4 text-[15px] font-medium hover:bg-line">
           Bloquear (modo comensal)
         </button>
-        <Link href="/cobrar" className="text-[13px] text-faint underline underline-offset-4 hover:text-fg">
-          ¿Sin restaurante? Dividir entre amigos
-        </Link>
       </div>
     </main>
   );
