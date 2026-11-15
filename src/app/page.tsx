@@ -27,11 +27,6 @@ function Seat({ state }: { state: SeatState }) {
   return <span className={`${base} border-[1.5px] border-line bg-surface-2`} />;
 }
 
-function dur(ms: number) {
-  const s = Math.max(0, Math.round(ms / 1000));
-  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
-}
-
 function TableTile({ t }: { t: TableSummary }) {
   const s = STATUS[t.status];
   const h = 92;
@@ -80,7 +75,7 @@ function TableTile({ t }: { t: TableSummary }) {
           {t.status === "ocupada" && `${t.guests} ${t.guests === 1 ? "persona" : "personas"}`}
           {t.status === "cobrando" && `faltan ${money(pending ?? 0)}`}
           {t.status === "pagada" &&
-            `${money(t.amount ?? 0)}${t.createdAt && t.closedAt ? ` en ${dur(t.closedAt - t.createdAt)}` : ""}`}
+            money(t.amount ?? 0)}
         </p>
       </div>
     </div>
@@ -114,19 +109,22 @@ export default function Home() {
   }, []);
 
   const open = tables?.filter((t) => t.status === "ocupada" || t.status === "cobrando") ?? [];
+  const hasSample = tables?.some((t) => !t.live && t.status === "pagada") ?? false;
   const cobrado =
     tables?.reduce((s, t) => s + (t.status === "pagada" ? (t.amount ?? 0) : t.status === "cobrando" ? (t.paidAmount ?? 0) : 0), 0) ?? 0;
 
-  if (ready && !waiter) {
+  if (!ready) return <main className="flex-1" />;
+
+  if (!waiter) {
     return (
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pt-16">
-        <PinForm onUnlock={unlock} />
-        <p className="mt-10 max-w-[420px] text-center text-[15px] text-muted">
-          Cada quien paga su parte con CoDi. El restaurante no paga comisión de terminal.
-        </p>
-        <Link href="/cobrar" className="mt-6 text-[13px] text-faint underline underline-offset-4 hover:text-fg">
-          ¿Sin restaurante? Dividir entre amigos
-        </Link>
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pt-10">
+        <h1 className="max-w-[560px] text-center text-[30px] font-extrabold leading-tight md:text-[40px]">
+          Cada quien paga su parte con CoDi.
+          <span className="block text-pagada">Sin terminal y sin comisión por cobro.</span>
+        </h1>
+        <div className="mt-10 w-full">
+          <PinForm onUnlock={unlock} small />
+        </div>
       </main>
     );
   }
@@ -138,9 +136,10 @@ export default function Home() {
           <h1 className="text-[28px] font-bold leading-tight md:text-[32px]">Mesas</h1>
           <p className="mt-1 text-[15px] text-muted">Toca una mesa para cobrar. Cada círculo es un lugar.</p>
         </div>
-        <div className="text-right">
-          <p className="text-[13px] text-muted">Total cobrado hoy</p>
+        <div className="shrink-0 text-right">
+          <p className="whitespace-nowrap text-[13px] text-muted">Total cobrado hoy</p>
           <p className="money text-[32px] font-extrabold leading-none text-pagada md:text-[40px]">{money(cobrado)}</p>
+          {hasSample && <p className="mt-1 whitespace-nowrap text-[11px] text-faint">incluye mesas de ejemplo</p>}
         </div>
       </section>
 
