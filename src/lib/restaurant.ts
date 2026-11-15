@@ -20,3 +20,6 @@ export const FAKE_TABLES: Record<number, FakeStatus> = {
   7: { status: "libre" },
   8: { status: "ocupada", amount: 1930, guests: 6 },
 };
+
+/** Seats use letters so they never get mixed up with table numbers: "Mesa 7, Lugar C". */
+export const seatLetter = (seat: number) => "ABCDEFGH"[seat] ?? String(seat + 1);

@@ -126,3 +126,14 @@ export async function getTableBill(table: number): Promise<BillView | null> {
 export async function clearTableBill(table: number) {
   await del(`table:${table}`);
 }
+
+/** Push charges (CoDi por notificación) sent for one guest: pey transaction ids. */
+export async function getPushes(billId: string, numRef: string): Promise<string[]> {
+  const raw = await get(`push:${billId}:${numRef}`);
+  return raw ? (JSON.parse(raw) as string[]) : [];
+}
+
+export async function addPush(billId: string, numRef: string, transactionId: string) {
+  const list = await getPushes(billId, numRef);
+  await set(`push:${billId}:${numRef}`, JSON.stringify([...list, transactionId]));
+}

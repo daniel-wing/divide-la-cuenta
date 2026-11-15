@@ -15,6 +15,8 @@ export type Payment = {
   amount: number;
   method?: PaymentMethod; // missing = codi (older records)
   receivedAt?: number; // unix ms when our server got pey's webhook
+  via?: "qr" | "pn"; // CoDi by QR or by push notification
+  source?: "webhook" | "consulta"; // how we learned about it: pey's webhook, or our own re-check against pey
 };
 
 export type Bill = {
