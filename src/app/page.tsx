@@ -146,8 +146,10 @@ export default function Home() {
         </div>
         <div className="shrink-0 text-right">
           <p className="whitespace-nowrap text-[13px] text-muted">Total cobrado hoy</p>
-          <p className="money text-[32px] font-extrabold leading-none text-pagada md:text-[40px]">{money(cobrado)}</p>
-          {hasSample && <p className="mt-1 whitespace-nowrap text-[11px] text-faint">incluye mesas de ejemplo</p>}
+          <p className="money text-[32px] font-extrabold leading-none text-pagada md:text-[40px]">
+            {money(cobrado)}
+            {hasSample && <span className="align-top text-[15px] font-semibold text-faint">*</span>}
+          </p>
         </div>
       </section>
 
@@ -165,6 +167,7 @@ export default function Home() {
         <button onClick={lock} className="h-10 rounded-[10px] bg-surface-2 px-4 text-[15px] font-medium hover:bg-line">
           Bloquear (modo comensal)
         </button>
+        {hasSample && <p className="text-[13px] text-faint">* Total simulado: incluye el consumo de las mesas de ejemplo.</p>}
       </div>
     </main>
   );
