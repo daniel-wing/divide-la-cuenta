@@ -13,16 +13,22 @@ const mem: Mem = g.__mem ?? (g.__mem = { kv: new Map(), hashes: new Map() });
 
 const TTL = 60 * 60 * 24 * 7; // 7 days
 
+// Preview deployments share the database with production: keep their data apart.
+const PREFIX = process.env.VERCEL_ENV === "preview" ? "pv:" : "";
+const k = (key: string) => PREFIX + key;
+
 export const usingRedis = Boolean(redis);
 
-async function setNX(key: string, value: string): Promise<boolean> {
+async function setNX(rawKey: string, value: string): Promise<boolean> {
+  const key = k(rawKey);
   if (redis) return (await redis.set(key, value, { nx: true, ex: TTL })) === "OK";
   if (mem.kv.has(key)) return false;
   mem.kv.set(key, value);
   return true;
 }
 
-async function get(key: string): Promise<string | null> {
+async function get(rawKey: string): Promise<string | null> {
+  const key = k(rawKey);
   if (redis) {
     const v = await redis.get<unknown>(key);
     if (v == null) return null;
@@ -31,12 +37,14 @@ async function get(key: string): Promise<string | null> {
   return mem.kv.get(key) ?? null;
 }
 
-async function set(key: string, value: string) {
+async function set(rawKey: string, value: string) {
+  const key = k(rawKey);
   if (redis) await redis.set(key, value, { ex: TTL });
   else mem.kv.set(key, value);
 }
 
-async function hsetnx(key: string, field: string, value: string): Promise<boolean> {
+async function hsetnx(rawKey: string, field: string, value: string): Promise<boolean> {
+  const key = k(rawKey);
   if (redis) {
     const r = await redis.hsetnx(key, field, value);
     await redis.expire(key, TTL);
@@ -49,7 +57,9 @@ async function hsetnx(key: string, field: string, value: string): Promise<boolea
   return true;
 }
 
-async function hgetall(key: string): Promise<Record<string, string>> {
+async function hgetall(rawKey: string): Promise<Record<string, string>> {
+  const key = k(rawKey);
+
   if (redis) {
     const r = await redis.hgetall<Record<string, unknown>>(key);
     const out: Record<string, string> = {};
@@ -57,6 +67,12 @@ async function hgetall(key: string): Promise<Record<string, string>> {
     return out;
   }
   return Object.fromEntries(mem.hashes.get(key) ?? new Map());
+}
+
+async function del(rawKey: string) {
+  const key = k(rawKey);
+  if (redis) await redis.del(key);
+  else mem.kv.delete(key);
 }
 
 /** Reserve a unique 7-digit reference number for pey. */
@@ -104,4 +120,9 @@ export async function setTableBill(table: number, billId: string) {
 export async function getTableBill(table: number): Promise<BillView | null> {
   const id = await get(`table:${table}`);
   return id ? getBill(id) : null;
+}
+
+/** Frees a table so it can be charged again. The bill itself is kept. */
+export async function clearTableBill(table: number) {
+  await del(`table:${table}`);
 }
