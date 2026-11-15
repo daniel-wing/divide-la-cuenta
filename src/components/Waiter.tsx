@@ -56,11 +56,15 @@ export function PinForm({
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [real, setReal] = useState(false);
 
   useEffect(() => {
     fetch("/api/pin")
       .then((r) => r.json())
-      .then((d: { demo: boolean; hint?: string }) => setHint(d.demo ? (d.hint ?? null) : null))
+      .then((d: { demo: boolean; hint?: string; real?: boolean }) => {
+        setHint(d.demo ? (d.hint ?? null) : null);
+        setReal(Boolean(d.real));
+      })
       .catch(() => {});
   }, []);
 
@@ -98,6 +102,7 @@ export function PinForm({
       {hint && (
         <p className="mt-4 rounded-[10px] bg-cobrando-tint px-3 py-2 text-[15px] text-cobrando">
           Demo: el código es <span className="display font-bold">{hint}</span>
+          {real && <span className="mt-1 block text-[13px]">Los cobros son reales. Prueba con centavos, por ejemplo $0.04.</span>}
         </p>
       )}
     </form>

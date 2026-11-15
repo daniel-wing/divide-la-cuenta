@@ -7,7 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import type { BillView, Participant, PaymentMethod } from "@/lib/types";
 import SeatMap, { Check, PaidStamp, tableRatio } from "@/components/SeatMap";
 import { money } from "@/lib/format";
-import { seatLetter } from "@/lib/restaurant";
+import { RESTAURANT_NAME, seatLetter } from "@/lib/restaurant";
 import { PinForm, useWaiter } from "@/components/Waiter";
 
 const METHOD_LABEL: Record<PaymentMethod, string> = { codi: "CoDi", efectivo: "Efectivo", tarjeta: "Tarjeta" };
@@ -76,6 +76,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
   const [phone, setPhone] = useState("");
   const [push, setPush] = useState<{ state: "idle" | "sending" | "sent" | "error"; msg?: string }>({ state: "idle" });
   const [checking, setChecking] = useState(false);
+  const [thanks, setThanks] = useState<Participant | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [justPaid, setJustPaid] = useState<Set<string>>(new Set());
   const seen = useRef<Set<string> | null>(null);
@@ -140,8 +141,18 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
   }, [id]);
 
   useEffect(() => {
-    if (zoom && bill?.payments[zoom.numRef]) setZoom(null);
+    // The guest who is looking at their QR gets a clear answer the moment pey confirms.
+    if (zoom && bill?.payments[zoom.numRef]) {
+      setThanks(zoom);
+      setZoom(null);
+    }
   }, [bill, zoom]);
+
+  useEffect(() => {
+    if (!thanks) return;
+    const t = setTimeout(() => setThanks(null), 4500);
+    return () => clearTimeout(t);
+  }, [thanks]);
 
   useEffect(() => {
     setPush({ state: "idle" });
@@ -251,7 +262,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
               <Check className="check-draw h-8 w-8" />
             </span>
             <div>
-              <h1 className="text-[36px] font-extrabold leading-tight md:text-[44px]">
+              <h1 className="text-[28px] font-extrabold leading-tight sm:text-[36px] md:text-[44px]">
                 {bill.table ? `Mesa ${bill.table} pagada` : "Cuenta saldada"}
               </h1>
               <p className="text-[17px] text-white/85">
@@ -349,9 +360,11 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                 </>
               )}
             </SeatMap>
+            {!done && (
             <p className="mt-4 rounded-full bg-surface-2 px-3 py-1 text-[13px] text-muted">
               {waiter ? "Mesero: tú estás aquí, abajo. Toca un lugar para abrir su QR." : "Toca tu lugar para ver tu QR y escanéalo con la app de tu banco."}
             </p>
+            )}
           </div>
 
           <div className="card divide-y divide-line">
@@ -520,11 +533,31 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
         </div>
       )}
 
+      {thanks && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setThanks(null)}>
+          <div className="w-full max-w-[420px] rounded-[18px] bg-pagada p-8 text-center text-white">
+            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-pagada">
+              <Check className="check-draw h-9 w-9" />
+            </span>
+            <p className="display mt-4 text-[30px] font-extrabold leading-tight">Pago recibido</p>
+            <p className="mt-1 text-[17px] text-white/90">
+              {thanks.name} · <span className="money font-semibold">{money(thanks.amount)}</span>
+            </p>
+            <p className="mt-3 text-[13px] text-white/75">Confirmado por tu banco y pey. Gracias.</p>
+          </div>
+        </div>
+      )}
+
       {zoom && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setZoom(null)}>
           <div className="w-full max-w-[560px] rounded-[18px] bg-white p-6 text-center text-[#14171f]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-baseline justify-between gap-6">
-              <p className="display text-[24px] font-bold">{zoom.name}</p>
+              <div className="text-left">
+                <p className="text-[13px] text-[#5b6474]">
+                  {bill.table ? `${RESTAURANT_NAME} · Mesa ${bill.table}` : bill.concept}
+                </p>
+                <p className="display text-[24px] font-bold leading-tight">{zoom.name}</p>
+              </div>
               <p className="money text-[32px] font-extrabold">{money(zoom.amount)}</p>
             </div>
             <div className="mt-3 flex justify-center">
@@ -536,7 +569,9 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                 style={{ width: "min(78vw, 56vh)", height: "min(78vw, 56vh)" }}
               />
             </div>
-            <p className="mt-2 text-[15px] text-[#5b6474]">Escanéalo con CoDi en la app de tu banco</p>
+            <p className="mt-2 text-[15px] text-[#5b6474]">
+              Abre la app de tu banco, entra a <span className="font-semibold text-[#14171f]">CoDi</span> y escanea este código.
+            </p>
             <div className="mt-4 rounded-[12px] bg-[#f3f4f6] p-3 text-left">
               <p className="text-[13px] font-medium text-[#14171f]">¿Sin escanear? Recibe el cobro en la app de tu banco</p>
               {push.state === "sent" ? (
