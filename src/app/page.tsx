@@ -27,6 +27,11 @@ function Seat({ state }: { state: SeatState }) {
   return <span className={`${base} border-[1.5px] border-line bg-surface-2`} />;
 }
 
+function dur(ms: number) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
+}
+
 function TableTile({ t }: { t: TableSummary }) {
   const s = STATUS[t.status];
   const h = 92;
@@ -75,7 +80,7 @@ function TableTile({ t }: { t: TableSummary }) {
           {t.status === "ocupada" && `${t.guests} ${t.guests === 1 ? "persona" : "personas"}`}
           {t.status === "cobrando" && `faltan ${money(pending ?? 0)}`}
           {t.status === "pagada" &&
-            money(t.amount ?? 0)}
+            `${money(t.amount ?? 0)}${t.createdAt && t.closedAt ? ` en ${dur(t.closedAt - t.createdAt)}` : ""}`}
         </p>
       </div>
     </div>
