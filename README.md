@@ -40,7 +40,7 @@ El pago nunca se confirma en el navegador. La bitácora de cada mesa dice cómo 
 4. Toca un lugar, escanea el QR con CoDi en la app de tu banco y paga $0.01. El lugar se marca PAGADO sin recargar.
 5. Cierra los demás lugares con "Efectivo" o "Tarjeta".
 
-La demo cobra con CoDi real, por eso conviene probar con centavos. Las mesas que aparecen ocupadas o pagadas al abrir son datos de ejemplo, y el total del tablero lo dice. Los pagos de prueba llegan a la cuenta de prueba asignada por el hackatón.
+La demo cobra con CoDi real, por eso conviene probar con centavos. Las mesas que aparecen ocupadas o pagadas al abrir son datos de ejemplo, y el total del tablero es simulado (lo dice en una nota al pie). Los pagos de prueba llegan a la cuenta de prueba asignada por el hackatón.
 
 ## Lo que todavía no hace
 
