@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { addPush, getBill, getPushes } from "@/lib/store";
+import { addPush, getBill, getClaims, getPushes } from "@/lib/store";
+import { isWaiter } from "@/lib/pin";
 import { createCodiPush } from "@/lib/pey";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const p = bill.participants.find((x) => x.numRef === body.numRef);
   if (!p) return NextResponse.json({ error: "Persona no encontrada" }, { status: 404 });
   if (bill.payments[p.numRef]) return NextResponse.json({ error: "Esta parte ya está pagada" }, { status: 409 });
+  // If another phone is paying this seat, only that phone (or the waiter) can send its charge.
+  const claim = (await getClaims(bill))[p.numRef];
+  if (claim && claim.token !== req.headers.get("x-guest-token") && !isWaiter(req)) {
+    return NextResponse.json({ error: "Alguien más está pagando este lugar" }, { status: 409 });
+  }
   if ((await getPushes(id, p.numRef)).length >= MAX_PUSHES) {
     return NextResponse.json({ error: "Ya se enviaron varios cobros a este lugar. Usa el QR." }, { status: 429 });
   }
