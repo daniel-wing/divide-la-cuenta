@@ -129,6 +129,12 @@ function CobrarForm() {
 
   const label = "text-[13px] text-muted";
 
+  // This version is for restaurants only: without a table there is nothing to charge here.
+  useEffect(() => {
+    if (!restaurant) router.replace("/");
+  }, [restaurant, router]);
+  if (!restaurant) return null;
+
   if (ready && !waiter) {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pt-16">
@@ -214,7 +220,7 @@ function CobrarForm() {
               onChange={setMode}
               options={[
                 { value: "uno", label: "Uno solo" },
-                { value: "dividir", label: "Cada quien su parte" },
+                { value: "dividir", label: "En partes iguales" },
               ]}
             />
           </div>
@@ -338,7 +344,7 @@ function CobrarForm() {
                   ? `Generar cobros de ${money(total / people)} c/u`
                   : `Generar cobro de ${money(total)}`}
           </button>
-          <p className="mt-2 hidden text-center text-[13px] text-muted md:block">Un QR de CoDi por persona, sin comisión por cobro</p>
+          <p className="mt-2 hidden text-center text-[13px] text-muted md:block">Un QR de CoDi por persona, sin comisiones</p>
         </aside>
       </form>
     </main>
