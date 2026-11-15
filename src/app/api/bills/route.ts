@@ -4,6 +4,7 @@ import { createCodiQr, demoMode } from "@/lib/pey";
 import { reserveNumRef, saveBill, setTableBill } from "@/lib/store";
 import { TABLE_COUNT, seatsFor } from "@/lib/restaurant";
 import type { Bill, Participant } from "@/lib/types";
+import { isWaiter } from "@/lib/pin";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,9 @@ export async function POST(req: Request) {
     const table = body.table ? Math.round(Number(body.table)) : undefined;
     if (table !== undefined && (table < 1 || table > TABLE_COUNT)) {
       return NextResponse.json({ error: "Mesa no válida" }, { status: 400 });
+    }
+    if (table !== undefined && !isWaiter(req)) {
+      return NextResponse.json({ error: "Solo el mesero puede cobrar una mesa" }, { status: 401 });
     }
     const concept = (body.concept ?? "").trim() || (table ? `Mesa ${table}` : "Cuenta compartida");
     const subtotal = Number(body.subtotal ?? body.total);

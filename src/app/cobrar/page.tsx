@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { RESTAURANT_NAME, seatsFor } from "@/lib/restaurant";
 import SeatMap, { tableRatio } from "@/components/SeatMap";
 import { money } from "@/lib/format";
+import { PinForm, useWaiter } from "@/components/Waiter";
 
 
 function Segmented<T extends string | number>({
@@ -58,12 +59,13 @@ function CobrarForm() {
   const [seatNames, setSeatNames] = useState<Record<number, string>>({});
   const [concept, setConcept] = useState("");
   const [subtotal, setSubtotal] = useState("");
-  const [tip, setTip] = useState<number>(10);
+  const [tip, setTip] = useState<number>(0);
   const [customTip, setCustomTip] = useState("");
   const [mode, setMode] = useState<"uno" | "dividir">(restaurant ? "uno" : "dividir");
   const [names, setNames] = useState<string[]>(["", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { ready, waiter, unlock, headers } = useWaiter();
 
   // An occupied table already has its consumption and seated guests: bring them in.
   useEffect(() => {
@@ -92,7 +94,7 @@ function CobrarForm() {
   const bySeat = restaurant && splitMode;
   const sortedSeats = [...seats].sort((a, b) => a - b);
   const people = !splitMode ? 1 : bySeat ? seats.length : names.length;
-  const ready = base > 0 && (!bySeat || seats.length >= 2);
+  const canSubmit = base > 0 && (!bySeat || seats.length >= 2);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -106,7 +108,7 @@ function CobrarForm() {
           : names.map((n, i) => n.trim() || `Persona ${i + 1}`);
       const res = await fetch("/api/bills", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: headers({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           concept: restaurant ? `${RESTAURANT_NAME} - Mesa ${table}` : concept,
           subtotal: base,
@@ -126,6 +128,14 @@ function CobrarForm() {
   }
 
   const label = "text-[13px] text-muted";
+
+  if (restaurant && ready && !waiter) {
+    return (
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pt-16">
+        <PinForm onUnlock={unlock} title={`Cobrar mesa ${table}`} />
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto w-full max-w-[920px] flex-1 px-5 pt-6 pb-32 md:pb-0">
@@ -315,12 +325,12 @@ function CobrarForm() {
           </div>
           {error && <p className="mt-3 rounded-[10px] bg-surface-2 px-4 py-3 text-[15px] text-danger">{error}</p>}
           <button
-            disabled={loading || !ready}
+            disabled={loading || !canSubmit}
             className="mt-3 h-14 w-full rounded-[12px] bg-accent text-[17px] font-semibold text-on-accent transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             {loading
               ? "Generando cobros..."
-              : !ready
+              : !canSubmit
                 ? "Generar cobros"
                 : people > 1
                   ? `Generar cobros de ${money(total / people)} c/u`

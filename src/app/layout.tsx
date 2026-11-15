@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         {children}
         <footer className="mx-auto w-full max-w-6xl px-5 pb-8 pt-12 text-[13px] text-faint">
-          Cobros con CoDi, de banco a banco, vía pey
+          Cada quien paga su parte con CoDi. El restaurante no paga comisión de terminal. Vía pey.
         </footer>
       </body>
     </html>
