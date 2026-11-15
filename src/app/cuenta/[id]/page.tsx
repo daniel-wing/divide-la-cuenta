@@ -22,6 +22,19 @@ function dur(ms: number) {
 
 type Toast = { key: string; text: string };
 
+// A drawing of a QR, not a real one: the real code only opens, large, when its seat is tapped,
+// so nobody scans the neighbor's code by mistake.
+function QrGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <path d="M14 14h3v3h-3zM20 14v.01M14 20v.01M17 20h4M20 17v.01" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // Short payment chimes made with Web Audio, no files needed.
 let audioCtx: AudioContext | null = null;
 function unlockAudio() {
@@ -135,7 +148,6 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
   const seatMode = Boolean(bill.table) && !single && bill.participants.every((p) => typeof p.seat === "number" && p.seat < capacity);
   const bySeat = new Map(bill.participants.map((p) => [p.seat, p]));
   const codiCount = Object.values(bill.payments).filter((x) => (x.method ?? "codi") === "codi").length;
-  const closedIn = done ? Math.max(...Object.values(bill.payments).map((x) => x.paidAt)) - bill.createdAt : 0;
   const title = bill.table ? `Mesa ${bill.table}` : bill.concept;
 
   async function post(path: string, body: object) {
@@ -206,7 +218,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                 {bill.table ? `Mesa ${bill.table} pagada` : "Cuenta saldada"}
               </h1>
               <p className="text-[17px] text-white/85">
-                <span className="money font-semibold text-white">{money(bill.total)}</span> en {dur(closedIn)} · {codiCount} de {n} con CoDi
+                <span className="money font-semibold text-white">{money(bill.total)}</span> · {codiCount} de {n} con CoDi
               </p>
             </div>
           </div>
@@ -232,8 +244,8 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
 
       {bill.table && !done && (
         <p className="mt-4 rounded-[12px] border border-pagada/25 bg-pagada-tint px-4 py-3 text-[15px] text-fg">
-          <span className="font-semibold text-pagada">Paga con CoDi y apoya a este lugar.</span> Cada pago con tarjeta le cuesta una comisión al
-          restaurante. Con CoDi recibe tu pago completo, de banco a banco.
+          <span className="font-semibold text-pagada">Paga con CoDi y apoya a este lugar.</span> Con tarjeta, el restaurante paga comisión por
+          cada cobro.
         </p>
       )}
 
@@ -275,10 +287,11 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                     ) : (
                       <button
                         onClick={() => setZoom(p)}
-                        title="Toca para agrandar"
-                        className={`${box} rounded-[14px] border-2 border-cobrando bg-white p-1.5 transition-transform hover:scale-[1.03]`}
+                        aria-label={`Ver el QR de ${p.name}`}
+                        className={`${box} flex flex-col items-center justify-center gap-1 rounded-[14px] border-2 border-cobrando bg-cobrando-tint text-cobrando transition-transform hover:scale-[1.03]`}
                       >
-                        <QRCodeSVG value={p.qrString} marginSize={1} bgColor="#FFFFFF" fgColor="#111110" style={{ width: "100%", height: "100%" }} />
+                        <QrGlyph className="h-9 w-9 sm:h-14 sm:w-14" />
+                        <span className="text-[12px] font-semibold sm:text-[15px]">Ver mi QR</span>
                       </button>
                     )}
                     <p className="mt-1 max-w-[84px] truncate text-[12px] font-medium text-muted sm:max-w-[128px] sm:text-[13px]">
@@ -299,7 +312,9 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                 </>
               )}
             </SeatMap>
-            <p className="mt-4 rounded-full bg-surface-2 px-3 py-1 text-[13px] text-muted">Mesero: tú estás aquí, abajo. Cada QR está en su lugar.</p>
+            <p className="mt-4 rounded-full bg-surface-2 px-3 py-1 text-[13px] text-muted">
+              {waiter ? "Mesero: tú estás aquí, abajo. Toca un lugar para abrir su QR." : "Toca tu lugar para ver tu QR y escanéalo con la app de tu banco."}
+            </p>
           </div>
 
           <div className="card divide-y divide-line">
@@ -391,18 +406,17 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                   {codi && (
                     <span className="text-muted">
                       {" "}
-                      · {dur(pay.paidAt - bill.createdAt)} después de generar su QR
                       {bill.demo
-                        ? " · pago simulado (modo demo)"
+                        ? "· pago simulado (modo demo)"
                         : lag !== null && lag >= 0 && lag < 120000
-                          ? ` · pey avisó en ${dur(lag)}`
-                          : " · confirmado por webhook de pey"}
+                          ? `· pey avisó en ${dur(lag)}`
+                          : "· confirmado por webhook de pey"}
                     </span>
                   )}
                 </li>
               );
             })}
-          {done && <li className="text-[15px] font-semibold text-pagada">{bill.table ? "Mesa cobrada" : "Cuenta cobrada"} en {dur(closedIn)}</li>}
+          {done && <li className="text-[15px] font-semibold text-pagada">{bill.table ? "Mesa cobrada" : "Cuenta cobrada"}</li>}
         </ol>
       </section>
 
@@ -420,7 +434,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
         </div>
       )}
 
-      {!done && <p className="mt-10 text-center text-[15px] text-muted">Escanea tu QR con la app de tu banco. El pago se confirma solo.</p>}
+      {!done && <p className="mt-10 text-center text-[15px] text-muted">El pago se confirma solo, sin recargar la página.</p>}
 
       {toasts.length > 0 && (
         <div className="pointer-events-none fixed left-1/2 top-5 z-[60] flex w-[min(92vw,560px)] -translate-x-1/2 flex-col gap-2">

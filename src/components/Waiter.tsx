@@ -43,7 +43,15 @@ export function useWaiter() {
 }
 
 /** PIN form. Used full page (dashboard) or inside a dialog. */
-export function PinForm({ onUnlock, title = "Entrar como mesero" }: { onUnlock: (pin: string) => Promise<boolean>; title?: string }) {
+export function PinForm({
+  onUnlock,
+  title = "Entrar como mesero",
+  small,
+}: {
+  onUnlock: (pin: string) => Promise<boolean>;
+  title?: string;
+  small?: boolean;
+}) {
   const [value, setValue] = useState("");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -68,7 +76,7 @@ export function PinForm({ onUnlock, title = "Entrar como mesero" }: { onUnlock: 
         if (!ok) setValue("");
       }}
     >
-      <h2 className="text-[24px] font-bold">{title}</h2>
+      <h2 className={small ? "text-[17px] font-semibold text-muted" : "text-[24px] font-bold"}>{title}</h2>
       <p className="mt-1 text-[15px] text-muted">Escribe tu código de mesero.</p>
       <input
         autoFocus

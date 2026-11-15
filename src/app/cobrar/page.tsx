@@ -26,7 +26,7 @@ function Segmented<T extends string | number>({
           key={String(o.value)}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded-[8px] px-3 py-2 text-[15px] transition-colors ${
+          className={`flex-1 rounded-[8px] px-1.5 py-2 text-[15px] transition-colors sm:px-3 ${
             value === o.value ? "bg-surface font-medium text-fg shadow-[var(--shadow)]" : "text-muted hover:text-fg"
           }`}
         >
@@ -59,7 +59,7 @@ function CobrarForm() {
   const [seatNames, setSeatNames] = useState<Record<number, string>>({});
   const [concept, setConcept] = useState("");
   const [subtotal, setSubtotal] = useState("");
-  const [tip, setTip] = useState<number>(0);
+  const [tip, setTip] = useState<number | null>(null); // the waiter must choose, nothing is preselected
   const [customTip, setCustomTip] = useState("");
   const [mode, setMode] = useState<"uno" | "dividir">(restaurant ? "uno" : "dividir");
   const [names, setNames] = useState<string[]>(["", "", ""]);
@@ -88,13 +88,13 @@ function CobrarForm() {
   }, [restaurant, table]);
 
   const splitMode = mode === "dividir";
-  const tipPct = tip === -1 ? Number(customTip) || 0 : tip;
+  const tipPct = tip === null ? 0 : tip === -1 ? Number(customTip) || 0 : tip;
   const base = Number(subtotal) || 0;
   const total = Math.round(base * (1 + tipPct / 100) * 100) / 100;
   const bySeat = restaurant && splitMode;
   const sortedSeats = [...seats].sort((a, b) => a - b);
   const people = !splitMode ? 1 : bySeat ? seats.length : names.length;
-  const canSubmit = base > 0 && (!bySeat || seats.length >= 2);
+  const canSubmit = base > 0 && tip !== null && (!bySeat || seats.length >= 2);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,10 +129,10 @@ function CobrarForm() {
 
   const label = "text-[13px] text-muted";
 
-  if (restaurant && ready && !waiter) {
+  if (ready && !waiter) {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pt-16">
-        <PinForm onUnlock={unlock} title={`Cobrar mesa ${table}`} />
+        <PinForm onUnlock={unlock} title={restaurant ? `Cobrar mesa ${table}` : "Dividir entre amigos"} />
       </main>
     );
   }
@@ -177,11 +177,11 @@ function CobrarForm() {
         </label>
 
         <div>
-          <span className={label}>Propina</span>
+          <span className={label}>Propina{tip === null ? " (elige una opción)" : ""}</span>
           <div className="mt-2">
             <Segmented
-              value={tip}
-              onChange={setTip}
+              value={tip ?? -99}
+              onChange={(v: number) => setTip(v)}
               options={[
                 { value: 0, label: "Sin propina" },
                 { value: 10, label: "10%" },
@@ -314,7 +314,7 @@ function CobrarForm() {
         <aside className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-bg p-4 md:sticky md:top-6 md:self-start md:rounded-[16px] md:border md:p-6 md:shadow-[var(--shadow)]">
           <div className="hidden space-y-2 md:block">
             <Row label="Consumo" value={money(base)} />
-            <Row label={`Propina ${tipPct}%`} value={money(total - base)} />
+            <Row label={tip === null ? "Propina" : `Propina ${tipPct}%`} value={tip === null ? "por elegir" : money(total - base)} />
             <Row label="Total" value={money(total)} strong />
           </div>
           <div className="flex items-baseline justify-between md:mt-4">
@@ -330,13 +330,15 @@ function CobrarForm() {
           >
             {loading
               ? "Generando cobros..."
-              : !canSubmit
+              : base > 0 && tip === null
+                ? "Elige la propina"
+                : !canSubmit
                 ? "Generar cobros"
                 : people > 1
                   ? `Generar cobros de ${money(total / people)} c/u`
                   : `Generar cobro de ${money(total)}`}
           </button>
-          <p className="mt-2 hidden text-center text-[13px] text-muted md:block">Un QR de CoDi por persona, sin comisión de terminal</p>
+          <p className="mt-2 hidden text-center text-[13px] text-muted md:block">Un QR de CoDi por persona, sin comisión por cobro</p>
         </aside>
       </form>
     </main>
