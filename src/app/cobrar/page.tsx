@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import type { TableSummary } from "../api/tables/route";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { RESTAURANT_NAME, seatsFor } from "@/lib/restaurant";
+import { RESTAURANT_NAME, seatsFor, seatLetter } from "@/lib/restaurant";
 import SeatMap, { tableRatio } from "@/components/SeatMap";
 import { money } from "@/lib/format";
 import { PinForm, useWaiter } from "@/components/Waiter";
@@ -104,7 +104,7 @@ function CobrarForm() {
       const finalNames = !splitMode
         ? ["Cliente"]
         : bySeat
-          ? sortedSeats.map((x) => seatNames[x]?.trim() || `Lugar ${x + 1}`)
+          ? sortedSeats.map((x) => seatNames[x]?.trim() || `Lugar ${seatLetter(x)}`)
           : names.map((n, i) => n.trim() || `Persona ${i + 1}`);
       const res = await fetch("/api/bills", {
         method: "POST",
@@ -236,13 +236,13 @@ function CobrarForm() {
                     <button
                       type="button"
                       aria-pressed={on}
-                      aria-label={`Lugar ${i + 1}`}
+                      aria-label={`Lugar ${seatLetter(i)}`}
                       onClick={() => setSeats(on ? seats.filter((x) => x !== i) : [...seats, i])}
                       className={`display flex h-12 w-12 items-center justify-center rounded-full text-[17px] font-bold transition-colors ${
                         on ? "bg-cobrando text-white" : "border-2 border-dashed border-faint text-faint hover:border-fg hover:text-fg"
                       }`}
                     >
-                      {i + 1}
+                      {seatLetter(i)}
                     </button>
                   );
                 }}
@@ -257,11 +257,11 @@ function CobrarForm() {
                 {sortedSeats.map((x) => (
                   <div key={x} className="flex items-center gap-3 px-4">
                     <span className="display flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cobrando text-[13px] font-bold text-white">
-                      {x + 1}
+                      {seatLetter(x)}
                     </span>
                     <input
                       className="w-full bg-transparent py-3 text-[17px] outline-none placeholder:text-faint"
-                      placeholder={`Lugar ${x + 1} (nombre opcional)`}
+                      placeholder={`Lugar ${seatLetter(x)} (nombre opcional)`}
                       value={seatNames[x] ?? ""}
                       onChange={(e) => setSeatNames({ ...seatNames, [x]: e.target.value })}
                     />
