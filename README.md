@@ -14,13 +14,24 @@ Proyecto para el Cursor Hackatón México (AI Builders México y pey, noviembre 
 2. Toca una mesa, confirma el consumo, elige la propina (ninguna opción viene marcada) y marca los lugares que pagan.
 3. Por cada persona se crea un cobro con `POST https://api.pey.mx/codi/qr` y una referencia numérica única (`numRef`).
 4. La pantalla muestra la mesa vista desde arriba con un botón por lugar. El QR real se abre grande solo al tocar el lugar, para que nadie escanee el del vecino. Abajo de la pantalla es donde está parado el mesero. El botón "Modo comensal" bloquea las acciones del mesero mientras los comensales ven la pantalla.
-5. Cada quien toca su lugar y escanea su QR con la app de su banco.
+5. Cada quien toca su lugar (A, B, C...) y escanea su QR con la app de su banco, o escribe su celular y recibe el cobro directo en su banco.
 6. pey avisa al servidor con el webhook `codi.qr.payment_received`. El servidor verifica la firma (Standard Webhooks), ignora duplicados por `transactionId` y marca ese lugar como pagado. El pago nunca se confirma en el navegador.
-7. El mesero también puede marcar efectivo o tarjeta. Cuando todos pagan aparece "Mesa pagada", y la bitácora muestra cada pago y cuánto tardó pey en avisar.
+7. El mesero también puede marcar efectivo o tarjeta. Cuando todos pagan aparece "Mesa pagada" con el tiempo total, y la bitácora muestra cada pago y cuánto tardó pey en avisar.
 
 También hay un modo secundario para dividir una cuenta entre amigos, sin restaurante. Generar cobros siempre pide el código de mesero.
 
 La comisión cero aplica a los pagos por CoDi. La API de pey no tiene costo por el momento.
+
+## Cómo usa la API de pey
+
+| Qué hace Dividí | pey |
+| --- | --- |
+| Un cobro CoDi por persona, con `numRef` único y `metadata` de la mesa | `POST /codi/qr` |
+| Cobro enviado a la app del banco del comensal, sin escanear (CoDi por notificación) | `POST /codi/pn` |
+| Confirmación del pago en el servidor, con firma verificada (Standard Webhooks), sin duplicados por `transactionId` y validando el monto | Webhooks `codi.qr.payment_received` y `codi.pn.payment_received` |
+| Red de seguridad: si un webhook se retrasa o se pierde, el servidor le pregunta a pey por cada cobro pendiente cada 15 segundos, o cuando el mesero toca "Verificar pagos con pey" | `GET /transaction/codi/qr/:id` y `GET /transaction/:id` |
+
+La bitácora de cada mesa dice cómo se confirmó cada pago: por webhook (y en cuántos segundos avisó pey) o por consulta. Con una API key real, un webhook sin firma se rechaza. El celular para el cobro por notificación se manda a pey y no se guarda.
 
 ## Cómo probarlo
 
@@ -56,4 +67,4 @@ Webhook a configurar en pey: `https://TU-APP.vercel.app/api/webhooks/pey`
 
 ## Pendientes conocidos
 
-Cobro por notificación de CoDi al celular, vista del comensal en su propio teléfono, propina elegida por cada persona, alta de restaurantes con su propia CLABE y cierre de turno.
+Vista del comensal en su propio teléfono, propina elegida por cada persona, alta de restaurantes con su propia CLABE y cierre de turno.
