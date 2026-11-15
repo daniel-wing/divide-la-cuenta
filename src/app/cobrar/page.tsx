@@ -26,7 +26,7 @@ function Segmented<T extends string | number>({
           key={String(o.value)}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded-[8px] px-1.5 py-2 text-[15px] transition-colors sm:px-3 ${
+          className={`flex-auto whitespace-nowrap rounded-[8px] px-2 py-2 text-[15px] transition-colors sm:px-3 ${
             value === o.value ? "bg-surface font-medium text-fg shadow-[var(--shadow)]" : "text-muted hover:text-fg"
           }`}
         >
@@ -57,12 +57,10 @@ function CobrarForm() {
   const capacity = seatsFor(table);
   const [seats, setSeats] = useState<number[]>([]); // seat positions that will pay, in tap order
   const [seatNames, setSeatNames] = useState<Record<number, string>>({});
-  const [concept, setConcept] = useState("");
   const [subtotal, setSubtotal] = useState("");
   const [tip, setTip] = useState<number | null>(null); // the waiter must choose, nothing is preselected
   const [customTip, setCustomTip] = useState("");
-  const [mode, setMode] = useState<"uno" | "dividir">(restaurant ? "uno" : "dividir");
-  const [names, setNames] = useState<string[]>(["", "", ""]);
+  const [mode, setMode] = useState<"uno" | "dividir">("uno");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { ready, waiter, unlock, headers } = useWaiter();
@@ -93,7 +91,7 @@ function CobrarForm() {
   const total = Math.round(base * (1 + tipPct / 100) * 100) / 100;
   const bySeat = restaurant && splitMode;
   const sortedSeats = [...seats].sort((a, b) => a - b);
-  const people = !splitMode ? 1 : bySeat ? seats.length : names.length;
+  const people = splitMode ? seats.length : 1;
   const canSubmit = base > 0 && tip !== null && (!bySeat || seats.length >= 2);
 
   async function submit(e: React.FormEvent) {
@@ -101,19 +99,15 @@ function CobrarForm() {
     setLoading(true);
     setError("");
     try {
-      const finalNames = !splitMode
-        ? ["Cliente"]
-        : bySeat
-          ? sortedSeats.map((x) => seatNames[x]?.trim() || `Lugar ${seatLetter(x)}`)
-          : names.map((n, i) => n.trim() || `Persona ${i + 1}`);
+      const finalNames = splitMode ? sortedSeats.map((x) => seatNames[x]?.trim() || `Lugar ${seatLetter(x)}`) : ["Cliente"];
       const res = await fetch("/api/bills", {
         method: "POST",
         headers: headers({ "Content-Type": "application/json" }),
         body: JSON.stringify({
-          concept: restaurant ? `${RESTAURANT_NAME} - Mesa ${table}` : concept,
+          concept: `${RESTAURANT_NAME} - Mesa ${table}`,
           subtotal: base,
           tipPct,
-          table: restaurant ? table : undefined,
+          table,
           names: finalNames,
           seats: bySeat ? sortedSeats : undefined,
         }),
@@ -138,7 +132,7 @@ function CobrarForm() {
   if (ready && !waiter) {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pt-16">
-        <PinForm onUnlock={unlock} title={restaurant ? `Cobrar mesa ${table}` : "Dividir entre amigos"} />
+        <PinForm onUnlock={unlock} title={`Cobrar mesa ${table}`} />
       </main>
     );
   }
@@ -148,22 +142,10 @@ function CobrarForm() {
       <Link href="/" className="text-[15px] text-muted hover:text-fg">
         ← Mesas
       </Link>
-      <h1 className="mt-4 text-[36px] font-extrabold">{restaurant ? `Cobrar mesa ${table}` : "Dividir entre amigos"}</h1>
+      <h1 className="mt-4 text-[36px] font-extrabold">{`Cobrar mesa ${table}`}</h1>
 
       <form onSubmit={submit} className="mt-8 grid gap-10 md:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-8">
-        {!restaurant && (
-          <label className="block">
-            <span className={label}>Concepto</span>
-            <input
-              className="mt-2 block w-full rounded-[10px] border border-line bg-surface px-4 py-3 text-[17px] outline-none focus:border-fg"
-              placeholder="Cena de viernes"
-              value={concept}
-              onChange={(e) => setConcept(e.target.value)}
-            />
-          </label>
-        )}
-
         <label className="block">
           <span className={label}>Consumo</span>
           <div className="mt-1 flex items-baseline gap-2 border-b border-line focus-within:border-fg">
@@ -276,42 +258,6 @@ function CobrarForm() {
               </div>
             )}
             {seats.length === 1 && <p className="mt-2 text-[13px] text-muted">Elige al menos dos lugares, o cambia a Uno solo.</p>}
-          </div>
-        )}
-
-        {splitMode && !bySeat && (
-          <div>
-            <span className={label}>Personas</span>
-            <div className="card mt-2 divide-y divide-line">
-              {names.map((n, i) => (
-                <div key={i} className="flex items-center gap-3 px-4">
-                  <input
-                    className="w-full bg-transparent py-3 text-[17px] outline-none placeholder:text-faint"
-                    placeholder={`Persona ${i + 1}`}
-                    value={n}
-                    onChange={(e) => setNames(names.map((x, j) => (j === i ? e.target.value : x)))}
-                  />
-                  {names.length > 2 && (
-                    <button
-                      type="button"
-                      className="text-[13px] text-muted hover:text-danger"
-                      onClick={() => setNames(names.filter((_, j) => j !== i))}
-                    >
-                      Quitar
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {names.length < 20 && (
-              <button
-                type="button"
-                className="mt-3 text-[15px] font-medium text-fg underline underline-offset-4"
-                onClick={() => setNames([...names, ""])}
-              >
-                Agregar persona
-              </button>
-            )}
           </div>
         )}
 
