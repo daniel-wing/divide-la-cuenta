@@ -31,8 +31,9 @@ export async function POST(req: Request) {
     if (table !== undefined && (table < 1 || table > TABLE_COUNT)) {
       return NextResponse.json({ error: "Mesa no válida" }, { status: 400 });
     }
-    if (table !== undefined && !isWaiter(req)) {
-      return NextResponse.json({ error: "Solo el mesero puede cobrar una mesa" }, { status: 401 });
+    // Every bill creates real CoDi charges, so it always needs the waiter code.
+    if (!isWaiter(req)) {
+      return NextResponse.json({ error: "Escribe tu código de mesero para generar cobros" }, { status: 401 });
     }
     const concept = (body.concept ?? "").trim() || (table ? `Mesa ${table}` : "Cuenta compartida");
     const subtotal = Number(body.subtotal ?? body.total);
@@ -91,6 +92,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ id });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ error: "No se pudieron generar los cobros. Intenta de nuevo." }, { status: 500 });
   }
 }
