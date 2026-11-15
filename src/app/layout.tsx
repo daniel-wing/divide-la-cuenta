@@ -5,8 +5,14 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { APP_NAME, RESTAURANT_NAME } from "@/lib/restaurant";
 
 export const metadata: Metadata = {
-  title: "Dividí · Cobros con CoDi",
-  description: "Cobra mesas y divide cuentas con CoDi, vía pey",
+  title: "Dividí · Dividan la cuenta con CoDi",
+  description: "App para restaurantes: el mesero genera un cobro CoDi por lugar y cada comensal paga desde su banco. Sin comisiones. Usa la API de pey.",
+  openGraph: {
+    title: "Dividí · Dividan la cuenta con CoDi. Sin comisiones.",
+    description: "El mesero genera un cobro CoDi por lugar. Cada comensal paga desde la app de su banco y la mesa se marca sola.",
+    locale: "es_MX",
+    type: "website",
+  },
 };
 
 const themeScript = `try{var t=localStorage.getItem('theme');var d=t==='dark';document.documentElement.classList.toggle('dark',d)}catch(e){}`;

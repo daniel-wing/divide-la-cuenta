@@ -127,6 +127,9 @@ export default function Home() {
           Dividan la cuenta con CoDi.
           <span className="block text-pagada">Sin comisiones.</span>
         </h1>
+        <p className="mt-4 max-w-[460px] text-center text-[15px] text-muted md:text-[17px]">
+          El mesero genera un cobro CoDi por lugar. Cada comensal paga desde la app de su banco y la mesa se marca sola.
+        </p>
         <div className="mt-10 w-full">
           <PinForm onUnlock={unlock} small />
         </div>
