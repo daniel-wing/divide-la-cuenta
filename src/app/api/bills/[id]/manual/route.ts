@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBill, markPaid } from "@/lib/store";
+import { isWaiter } from "@/lib/pin";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const bill = await getBill(id);
   if (!bill) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+  // In a restaurant only the waiter can mark cash or card.
+  if (bill.table && !isWaiter(req)) return NextResponse.json({ error: "Solo el mesero puede marcar este pago" }, { status: 401 });
   const p = bill.participants.find((x) => x.numRef === numRef);
   if (!p) return NextResponse.json({ error: "Persona no encontrada" }, { status: 404 });
   const ok = await markPaid(id, numRef, {
