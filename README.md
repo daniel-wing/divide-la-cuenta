@@ -1,6 +1,6 @@
 # Dividí
 
-**Cada quien paga su parte con CoDi. Sin terminal y sin comisión por cobro.**
+**Dividan la cuenta con CoDi. Sin comisiones.**
 
 Dividí es una app web para restaurantes. El mesero toca la mesa, marca los lugares ocupados y la app genera un QR de CoDi por persona, cada uno en la posición de su lugar. Cada comensal paga desde la app de su banco y su lugar se marca como PAGADO en vivo. Usa la API de [pey](https://docs.pey.mx).
 
@@ -14,11 +14,11 @@ Proyecto para el Cursor Hackatón México (AI Builders México y pey, noviembre 
 2. Toca una mesa, confirma el consumo, elige la propina (ninguna opción viene marcada) y marca los lugares que pagan.
 3. Por cada persona se crea un cobro con `POST https://api.pey.mx/codi/qr` y una referencia numérica única (`numRef`).
 4. La pantalla muestra la mesa vista desde arriba con un botón por lugar. El QR real se abre grande solo al tocar el lugar, para que nadie escanee el del vecino. Abajo de la pantalla es donde está parado el mesero. El botón "Modo comensal" bloquea las acciones del mesero mientras los comensales ven la pantalla.
-5. Cada quien toca su lugar (A, B, C...) y escanea su QR con la app de su banco, o escribe su celular y recibe el cobro directo en su banco.
+5. Cada comensal toca su lugar (A, B, C...) y escanea su QR con la app de su banco, o escribe su celular y recibe el cobro directo en su banco.
 6. pey avisa al servidor con el webhook `codi.qr.payment_received`. El servidor verifica la firma (Standard Webhooks), ignora duplicados por `transactionId` y marca ese lugar como pagado. El pago nunca se confirma en el navegador.
 7. El mesero también puede marcar efectivo o tarjeta. Cuando todos pagan aparece "Mesa pagada" con el tiempo total, y la bitácora muestra cada pago y cuánto tardó pey en avisar.
 
-También hay un modo secundario para dividir una cuenta entre amigos, sin restaurante. Generar cobros siempre pide el código de mesero.
+La cuenta se divide en partes iguales entre los lugares que pagan. Generar cobros siempre pide el código de mesero.
 
 La comisión cero aplica a los pagos por CoDi. La API de pey no tiene costo por el momento.
 
