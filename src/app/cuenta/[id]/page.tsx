@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import type { BillView, Participant, PaymentMethod } from "@/lib/types";
 import SeatMap, { Check, PaidStamp, tableRatio } from "@/components/SeatMap";
@@ -51,6 +52,7 @@ function chime(notes: number[]) {
 
 export default function CuentaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [bill, setBill] = useState<BillView | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [zoom, setZoom] = useState<Participant | null>(null);
@@ -375,6 +377,20 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
           {done && <li className="text-[15px] font-semibold text-pagada">{bill.table ? "Mesa cobrada" : "Cuenta cobrada"} en {dur(closedIn)}</li>}
         </ol>
       </section>
+
+      {bill.table && (done || bill.demo) && (
+        <div className="mt-8 text-center">
+          <button
+            onClick={async () => {
+              await fetch(`/api/tables/${bill.table}/free`, { method: "POST" });
+              router.push("/");
+            }}
+            className="h-11 rounded-[10px] bg-surface-2 px-5 text-[15px] font-medium transition-colors hover:bg-line"
+          >
+            Liberar mesa {bill.table}
+          </button>
+        </div>
+      )}
 
       {!done && <p className="mt-10 text-center text-[15px] text-muted">Escanea tu QR con la app de tu banco. El pago se confirma solo.</p>}
 
