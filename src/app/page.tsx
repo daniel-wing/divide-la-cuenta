@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { SeatState, TableSummary } from "./api/tables/route";
 import SeatMap, { Check, tableRatio } from "@/components/SeatMap";
 import { money } from "@/lib/format";
+import { PinForm, useWaiter } from "@/components/Waiter";
 
 const STATUS: Record<TableSummary["status"], { label: string; text: string }> = {
   libre: { label: "Libre", text: "text-faint" },
@@ -96,6 +97,7 @@ function TableTile({ t }: { t: TableSummary }) {
 
 export default function Home() {
   const [tables, setTables] = useState<TableSummary[] | null>(null);
+  const { ready, waiter, unlock, lock } = useWaiter();
 
   useEffect(() => {
     let alive = true;
@@ -112,42 +114,54 @@ export default function Home() {
   }, []);
 
   const open = tables?.filter((t) => t.status === "ocupada" || t.status === "cobrando") ?? [];
-  const porCobrar = open.reduce((s, t) => s + (t.amount ?? 0) - (t.paidAmount ?? 0), 0);
   const cobrado =
     tables?.reduce((s, t) => s + (t.status === "pagada" ? (t.amount ?? 0) : t.status === "cobrando" ? (t.paidAmount ?? 0) : 0), 0) ?? 0;
 
+  if (ready && !waiter) {
+    return (
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-5 pt-16">
+        <PinForm onUnlock={unlock} />
+        <p className="mt-10 max-w-[420px] text-center text-[15px] text-muted">
+          Cada quien paga su parte con CoDi. El restaurante no paga comisión de terminal.
+        </p>
+        <Link href="/cobrar" className="mt-6 text-[13px] text-faint underline underline-offset-4 hover:text-fg">
+          ¿Sin restaurante? Dividir entre amigos
+        </Link>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-5 pt-8">
-      <section className="flex flex-wrap items-end gap-x-12 gap-y-4">
+      <section className="flex items-end justify-between gap-6">
         <div>
-          <p className="text-[13px] text-muted">Por cobrar</p>
-          <p className="money text-[52px] font-extrabold leading-none">{money(porCobrar)}</p>
+          <h1 className="text-[28px] font-bold leading-tight md:text-[32px]">Mesas</h1>
+          <p className="mt-1 text-[15px] text-muted">Toca una mesa para cobrar. Cada círculo es un lugar.</p>
         </div>
-        <div>
-          <p className="text-[13px] text-muted">Cobrado hoy</p>
-          <p className="money text-[24px] font-bold text-pagada">{money(cobrado)}</p>
-        </div>
-        <div>
-          <p className="text-[13px] text-muted">Mesas abiertas</p>
-          <p className="money text-[24px] font-bold">{open.length}</p>
+        <div className="text-right">
+          <p className="text-[13px] text-muted">Total cobrado hoy</p>
+          <p className="money text-[32px] font-extrabold leading-none text-pagada md:text-[40px]">{money(cobrado)}</p>
         </div>
       </section>
-
-      <p className="mt-8 text-[15px] text-muted">Toca una mesa para cobrar. Cada círculo es un lugar.</p>
 
       {!tables ? (
         <p className="mt-6 text-muted">Cargando mesas...</p>
       ) : (
-        <div className="mt-2 grid grid-cols-2 items-end gap-x-2 gap-y-4 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 items-end gap-x-2 gap-y-4 md:grid-cols-4">
           {tables.map((t) => (
             <TableTile key={t.table} t={t} />
           ))}
         </div>
       )}
 
-      <Link href="/cobrar" className="mt-8 inline-block text-[15px] text-muted underline underline-offset-4 hover:text-fg">
-        ¿Sin restaurante? Dividir entre amigos
-      </Link>
+      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <button onClick={lock} className="h-10 rounded-[10px] bg-surface-2 px-4 text-[15px] font-medium hover:bg-line">
+          Bloquear (modo comensal)
+        </button>
+        <Link href="/cobrar" className="text-[13px] text-faint underline underline-offset-4 hover:text-fg">
+          ¿Sin restaurante? Dividir entre amigos
+        </Link>
+      </div>
     </main>
   );
 }
