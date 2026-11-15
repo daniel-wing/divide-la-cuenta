@@ -7,6 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import type { BillView, Participant, PaymentMethod } from "@/lib/types";
 import SeatMap, { Check, PaidStamp, tableRatio } from "@/components/SeatMap";
 import { money } from "@/lib/format";
+import { PinForm, useWaiter } from "@/components/Waiter";
 
 const METHOD_LABEL: Record<PaymentMethod, string> = { codi: "CoDi", efectivo: "Efectivo", tarjeta: "Tarjeta" };
 const time = (ms: number) => new Date(ms).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
@@ -53,6 +54,8 @@ function chime(notes: number[]) {
 export default function CuentaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { waiter, lock, unlock, headers } = useWaiter();
+  const [askPin, setAskPin] = useState(false);
   const [bill, setBill] = useState<BillView | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [zoom, setZoom] = useState<Participant | null>(null);
@@ -138,13 +141,16 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
   async function post(path: string, body: object) {
     await fetch(`/api/bills/${id}/${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: headers({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     });
     load();
   }
 
-  const manualButtons = (p: Participant, big?: boolean) => (
+  // In a restaurant, cash and card are for the waiter only. Among friends anyone can mark them.
+  const canManage = waiter || !bill.table;
+  const manualButtons = (p: Participant, big?: boolean) =>
+    !canManage ? null : (
     <div className={`flex gap-2 ${big ? "" : "justify-end"}`}>
       {(["efectivo", "tarjeta"] as const).map((m) => (
         <button
@@ -169,9 +175,24 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-5 pt-6">
       {bill.table && (
-        <Link href="/" className="text-[15px] text-muted hover:text-fg">
-          ← Mesas
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          {waiter ? (
+            <Link href="/" className="text-[15px] text-muted hover:text-fg">
+              ← Mesas
+            </Link>
+          ) : (
+            <span className="text-[15px] font-medium text-muted">Modo comensal</span>
+          )}
+          {waiter ? (
+            <button onClick={lock} className="h-10 rounded-[10px] bg-fg px-4 text-[15px] font-semibold text-bg">
+              Modo comensal
+            </button>
+          ) : (
+            <button onClick={() => setAskPin(true)} className="h-10 rounded-[10px] bg-surface-2 px-4 text-[15px] font-medium hover:bg-line">
+              Soy el mesero
+            </button>
+          )}
+        </div>
       )}
 
       {done ? (
@@ -198,7 +219,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
             {money(missing)}
           </p>
           <p className="mt-2 text-[15px] text-muted">
-            de <span className="money">{money(bill.total)}</span> · consumo <span className="money">{money(subtotal)}</span> + propina {tipPct}% ·{" "}
+            de <span className="money">{money(bill.total)}</span> · consumo <span className="money">{money(subtotal)}</span> {tipPct ? `+ propina ${tipPct}%` : "sin propina"} ·{" "}
             {single ? "esperando pago" : `${paidRefs.size} de ${n} pagaron`}
           </p>
           {!seatMode && (
@@ -207,6 +228,13 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
             </div>
           )}
         </section>
+      )}
+
+      {bill.table && !done && (
+        <p className="mt-4 rounded-[12px] border border-pagada/25 bg-pagada-tint px-4 py-3 text-[15px] text-fg">
+          <span className="font-semibold text-pagada">Paga con CoDi y apoya a este lugar.</span> Cada pago con tarjeta le cuesta una comisión al
+          restaurante. Con CoDi recibe tu pago completo, de banco a banco.
+        </p>
       )}
 
       {bill.demo && (
@@ -332,7 +360,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                 </div>
                 {!pay && (
                   <div className="mt-4">
-                    <p className="mb-2 text-[13px] text-muted">Paga con CoDi desde la app de tu banco, o cobra sin CoDi:</p>
+                    <p className="mb-2 text-[13px] text-muted">Paga con CoDi desde la app de tu banco{canManage ? ", o cobra sin CoDi:" : "."}</p>
                     {manualButtons(p, true)}
                   </div>
                 )}
@@ -378,11 +406,11 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
         </ol>
       </section>
 
-      {bill.table && (done || bill.demo) && (
+      {bill.table && waiter && (done || bill.demo) && (
         <div className="mt-8 text-center">
           <button
             onClick={async () => {
-              await fetch(`/api/tables/${bill.table}/free`, { method: "POST" });
+              await fetch(`/api/tables/${bill.table}/free`, { method: "POST", headers: headers() });
               router.push("/");
             }}
             className="h-11 rounded-[10px] bg-surface-2 px-5 text-[15px] font-medium transition-colors hover:bg-line"
@@ -407,6 +435,21 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
         </div>
       )}
 
+      {askPin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setAskPin(false)}>
+          <div className="w-full max-w-[420px] rounded-[18px] bg-bg p-8" onClick={(e) => e.stopPropagation()}>
+            <PinForm
+              title="Desbloquear"
+              onUnlock={async (v) => {
+                const ok = await unlock(v);
+                if (ok) setAskPin(false);
+                return ok;
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {zoom && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setZoom(null)}>
           <div className="w-full max-w-[560px] rounded-[18px] bg-white p-6 text-center text-[#14171f]" onClick={(e) => e.stopPropagation()}>
@@ -424,7 +467,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
               />
             </div>
             <p className="mt-2 text-[15px] text-[#5b6474]">Escanéalo con CoDi en la app de tu banco</p>
-            <div className="mt-3 [&_button]:text-[#14171f]">{manualButtons(zoom, true)}</div>
+            {canManage && <div className="mt-3 [&_button]:text-[#14171f]">{manualButtons(zoom, true)}</div>}
             <button onClick={() => setZoom(null)} className="mt-3 text-[15px] text-[#5b6474] hover:underline">
               Cerrar
             </button>
