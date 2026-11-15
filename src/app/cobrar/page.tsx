@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import type { TableSummary } from "../api/tables/route";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RESTAURANT_NAME, seatsFor } from "@/lib/restaurant";
@@ -63,6 +64,26 @@ function CobrarForm() {
   const [names, setNames] = useState<string[]>(["", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // An occupied table already has its consumption and seated guests: bring them in.
+  useEffect(() => {
+    if (!restaurant) return;
+    let alive = true;
+    fetch("/api/tables", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((all: TableSummary[]) => {
+        const t = all.find((x) => x.table === table);
+        if (!alive || !t || t.live || t.status !== "ocupada") return;
+        if (t.amount) setSubtotal((v) => v || String(t.amount));
+        const occupied = t.seats.map((st, i) => (st === "occupied" ? i : -1)).filter((i) => i >= 0);
+        setSeats((v) => (v.length ? v : occupied));
+        if (occupied.length > 1) setMode("dividir");
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [restaurant, table]);
 
   const splitMode = mode === "dividir";
   const tipPct = tip === -1 ? Number(customTip) || 0 : tip;
