@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import type { TableSummary } from "../api/tables/route";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { RESTAURANT_NAME, TABLE_COUNT } from "@/lib/restaurant";
+import { RESTAURANT_NAME, seatsFor } from "@/lib/restaurant";
+import SeatMap, { tableRatio } from "@/components/SeatMap";
+import { money } from "@/lib/format";
 
-const mxn = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
 
 function Segmented<T extends string | number>({
   options,
@@ -50,7 +52,10 @@ function CobrarForm() {
   const initialTable = Number(params.get("mesa")) || 0;
   const restaurant = initialTable > 0;
 
-  const [table, setTable] = useState(initialTable || 1);
+  const table = initialTable || 1;
+  const capacity = seatsFor(table);
+  const [seats, setSeats] = useState<number[]>([]); // seat positions that will pay, in tap order
+  const [seatNames, setSeatNames] = useState<Record<number, string>>({});
   const [concept, setConcept] = useState("");
   const [subtotal, setSubtotal] = useState("");
   const [tip, setTip] = useState<number>(10);
@@ -60,18 +65,45 @@ function CobrarForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // An occupied table already has its consumption and seated guests: bring them in.
+  useEffect(() => {
+    if (!restaurant) return;
+    let alive = true;
+    fetch("/api/tables", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((all: TableSummary[]) => {
+        const t = all.find((x) => x.table === table);
+        if (!alive || !t || t.live || t.status !== "ocupada") return;
+        if (t.amount) setSubtotal((v) => v || String(t.amount));
+        const occupied = t.seats.map((st, i) => (st === "occupied" ? i : -1)).filter((i) => i >= 0);
+        setSeats((v) => (v.length ? v : occupied));
+        if (occupied.length > 1) setMode("dividir");
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [restaurant, table]);
+
   const splitMode = mode === "dividir";
   const tipPct = tip === -1 ? Number(customTip) || 0 : tip;
   const base = Number(subtotal) || 0;
   const total = Math.round(base * (1 + tipPct / 100) * 100) / 100;
-  const people = splitMode ? names.length : 1;
+  const bySeat = restaurant && splitMode;
+  const sortedSeats = [...seats].sort((a, b) => a - b);
+  const people = !splitMode ? 1 : bySeat ? seats.length : names.length;
+  const ready = base > 0 && (!bySeat || seats.length >= 2);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const finalNames = splitMode ? names.map((n, i) => n.trim() || `Persona ${i + 1}`) : ["Cliente"];
+      const finalNames = !splitMode
+        ? ["Cliente"]
+        : bySeat
+          ? sortedSeats.map((x) => seatNames[x]?.trim() || `Lugar ${x + 1}`)
+          : names.map((n, i) => n.trim() || `Persona ${i + 1}`);
       const res = await fetch("/api/bills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,6 +113,7 @@ function CobrarForm() {
           tipPct,
           table: restaurant ? table : undefined,
           names: finalNames,
+          seats: bySeat ? sortedSeats : undefined,
         }),
       });
       const data = await res.json();
@@ -95,29 +128,15 @@ function CobrarForm() {
   const label = "text-[13px] text-muted";
 
   return (
-    <main className="mx-auto w-full max-w-[520px] flex-1 px-5 pt-6 pb-28 md:pb-0">
+    <main className="mx-auto w-full max-w-[920px] flex-1 px-5 pt-6 pb-32 md:pb-0">
       <Link href="/" className="text-[15px] text-muted hover:text-fg">
         ← Mesas
       </Link>
-      <h1 className="mt-4 text-[32px] font-semibold">{restaurant ? `Cobrar mesa ${table}` : "Dividir entre amigos"}</h1>
+      <h1 className="mt-4 text-[36px] font-extrabold">{restaurant ? `Cobrar mesa ${table}` : "Dividir entre amigos"}</h1>
 
-      <form onSubmit={submit} className="mt-8 space-y-8">
-        {restaurant ? (
-          <label className="block">
-            <span className={label}>Mesa</span>
-            <select
-              className="mt-2 block w-full rounded-[10px] border border-line bg-surface px-4 py-3 text-[17px] outline-none focus:border-fg"
-              value={table}
-              onChange={(e) => setTable(Number(e.target.value))}
-            >
-              {Array.from({ length: TABLE_COUNT }, (_, i) => (
-                <option key={i + 1} value={i + 1}>
-                  Mesa {i + 1}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
+      <form onSubmit={submit} className="mt-8 grid gap-10 md:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-8">
+        {!restaurant && (
           <label className="block">
             <span className={label}>Concepto</span>
             <input
@@ -178,20 +197,73 @@ function CobrarForm() {
         </div>
 
         <div>
-          <span className={label}>¿Cómo pagan?</span>
+          <span className={label}>¿Quién paga?</span>
           <div className="mt-2">
             <Segmented
               value={mode}
               onChange={setMode}
               options={[
-                { value: "uno", label: "Una persona" },
-                { value: "dividir", label: "Dividir la cuenta" },
+                { value: "uno", label: "Uno solo" },
+                { value: "dividir", label: "Cada quien su parte" },
               ]}
             />
           </div>
         </div>
 
-        {splitMode && (
+        {bySeat && (
+          <div>
+            <span className={label}>¿Quiénes pagan? Toca los lugares ocupados</span>
+            <div className="mt-4 flex flex-col items-center">
+              <SeatMap
+                capacity={capacity}
+                gap={10}
+                spread
+                surfaceClassName="rounded-[18px] border-2 border-fg bg-surface shadow-[var(--shadow)]"
+                surfaceStyle={{ height: 120, width: 120 * tableRatio(capacity) }}
+                renderSeat={(i) => {
+                  const on = seats.includes(i);
+                  return (
+                    <button
+                      type="button"
+                      aria-pressed={on}
+                      aria-label={`Lugar ${i + 1}`}
+                      onClick={() => setSeats(on ? seats.filter((x) => x !== i) : [...seats, i])}
+                      className={`display flex h-12 w-12 items-center justify-center rounded-full text-[17px] font-bold transition-colors ${
+                        on ? "bg-cobrando text-white" : "border-2 border-dashed border-faint text-faint hover:border-fg hover:text-fg"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                }}
+              >
+                <span className="display text-[40px] font-extrabold leading-none">{table}</span>
+                <span className="text-[13px] text-muted">{seats.length} de {capacity}</span>
+              </SeatMap>
+              <p className="mt-3 rounded-full bg-surface-2 px-3 py-1 text-[13px] text-muted">Tú estás aquí, abajo de la pantalla</p>
+            </div>
+            {seats.length > 0 && (
+              <div className="card mt-5 divide-y divide-line">
+                {sortedSeats.map((x) => (
+                  <div key={x} className="flex items-center gap-3 px-4">
+                    <span className="display flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cobrando text-[13px] font-bold text-white">
+                      {x + 1}
+                    </span>
+                    <input
+                      className="w-full bg-transparent py-3 text-[17px] outline-none placeholder:text-faint"
+                      placeholder={`Lugar ${x + 1} (nombre opcional)`}
+                      value={seatNames[x] ?? ""}
+                      onChange={(e) => setSeatNames({ ...seatNames, [x]: e.target.value })}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            {seats.length === 1 && <p className="mt-2 text-[13px] text-muted">Elige al menos dos lugares, o cambia a Uno solo.</p>}
+          </div>
+        )}
+
+        {splitMode && !bySeat && (
           <div>
             <span className={label}>Personas</span>
             <div className="card mt-2 divide-y divide-line">
@@ -227,25 +299,35 @@ function CobrarForm() {
           </div>
         )}
 
-        {base > 0 && (
-          <div className="space-y-2">
-            <Row label="Consumo" value={mxn.format(base)} />
-            <Row label={`Propina ${tipPct}%`} value={mxn.format(total - base)} />
-            <Row label="Total" value={mxn.format(total)} strong />
-            {people > 1 && <p className="money text-right text-[15px] text-muted">{mxn.format(total / people)} por persona</p>}
-          </div>
-        )}
-
-        {error && <p className="rounded-[10px] bg-surface-2 px-4 py-3 text-[15px] text-danger">{error}</p>}
-
-        <div className="fixed inset-x-0 bottom-0 bg-bg p-4 md:static md:bg-transparent md:p-0">
-          <button
-            disabled={loading}
-            className="h-14 w-full rounded-[10px] bg-accent text-[17px] font-semibold text-on-accent transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {loading ? "Generando QR..." : base > 0 ? `Cobrar ${mxn.format(total)}` : "Cobrar"}
-          </button>
         </div>
+
+        <aside className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-bg p-4 md:sticky md:top-6 md:self-start md:rounded-[16px] md:border md:p-6 md:shadow-[var(--shadow)]">
+          <div className="hidden space-y-2 md:block">
+            <Row label="Consumo" value={money(base)} />
+            <Row label={`Propina ${tipPct}%`} value={money(total - base)} />
+            <Row label="Total" value={money(total)} strong />
+          </div>
+          <div className="flex items-baseline justify-between md:mt-4">
+            <span className="text-[15px] text-muted md:hidden">Total {money(total)}</span>
+            {people > 1 && (
+              <span className="money text-[17px] font-semibold md:ml-auto">{money(total / people)} por persona</span>
+            )}
+          </div>
+          {error && <p className="mt-3 rounded-[10px] bg-surface-2 px-4 py-3 text-[15px] text-danger">{error}</p>}
+          <button
+            disabled={loading || !ready}
+            className="mt-3 h-14 w-full rounded-[12px] bg-accent text-[17px] font-semibold text-on-accent transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            {loading
+              ? "Generando cobros..."
+              : !ready
+                ? "Generar cobros"
+                : people > 1
+                  ? `Generar cobros de ${money(total / people)} c/u`
+                  : `Generar cobro de ${money(total)}`}
+          </button>
+          <p className="mt-2 hidden text-center text-[13px] text-muted md:block">Un QR de CoDi por persona, sin comisión de terminal</p>
+        </aside>
       </form>
     </main>
   );

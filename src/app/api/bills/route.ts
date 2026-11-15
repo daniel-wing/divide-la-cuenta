@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createCodiQr, demoMode } from "@/lib/pey";
 import { reserveNumRef, saveBill, setTableBill } from "@/lib/store";
-import { TABLE_COUNT } from "@/lib/restaurant";
+import { TABLE_COUNT, seatsFor } from "@/lib/restaurant";
 import type { Bill, Participant } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
       tipPct?: number;
       table?: number;
       names?: string[];
+      seats?: number[]; // seat position for each name, when charging a table by seats
     };
     const table = body.table ? Math.round(Number(body.table)) : undefined;
     if (table !== undefined && (table < 1 || table > TABLE_COUNT)) {
@@ -37,6 +38,14 @@ export async function POST(req: Request) {
 
     if (!Number.isFinite(subtotal) || subtotal <= 0) {
       return NextResponse.json({ error: "El total debe ser mayor a 0" }, { status: 400 });
+    }
+    const seatCount = table ? seatsFor(table) : undefined;
+    let seats: number[] | undefined;
+    if (table && Array.isArray(body.seats) && body.seats.length === names.length) {
+      const clean = body.seats.map((x) => Math.round(Number(x)));
+      const valid = clean.every((x) => x >= 0 && x < (seatCount ?? 0)) && new Set(clean).size === clean.length;
+      if (!valid) return NextResponse.json({ error: "Lugares no válidos" }, { status: 400 });
+      seats = clean;
     }
     if (names.length > 20) {
       return NextResponse.json({ error: "Máximo 20 personas" }, { status: 400 });
@@ -57,7 +66,7 @@ export async function POST(req: Request) {
           numRef,
           metadata: { billId: id, name },
         });
-        return { name, amount: amounts[i], numRef, qrId: qr.id, qrString: qr.qrString };
+        return { name, amount: amounts[i], numRef, qrId: qr.id, qrString: qr.qrString, ...(seats ? { seat: seats[i] } : {}) };
       })
     );
 
@@ -68,6 +77,7 @@ export async function POST(req: Request) {
       tipPct,
       total,
       table,
+      seatCount,
       createdAt: Date.now(),
       demo: demoMode,
       participants,

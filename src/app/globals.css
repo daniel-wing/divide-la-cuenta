@@ -1,41 +1,46 @@
 @import "tailwindcss";
+@import "@fontsource-variable/bricolage-grotesque";
+@import "@fontsource-variable/instrument-sans";
+
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #f4f8fd;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #edf2f9;
-  --line: #dde5ef;
-  --fg: #0f1b2d;
-  --muted: #5a6b82;
-  --faint: #98a6b8;
+  --surface-2: #f2f4f8;
+  --line: #e1e5ec;
+  --fg: #14171f;
+  --muted: #5b6474;
+  --faint: #a3abb8;
   --cobrando: #ea580c;
-  --cobrando-tint: #fff0e6;
-  --pagada: #1d4ed8;
-  --pagada-tint: #e8f0fe;
+  --cobrando-tint: #fff1e7;
+  --pagada: #1e3fae;
+  --pagada-tint: #e9eefb;
+  --maiz: #f2b705;
   --danger: #dc2626;
-  --accent: #2563eb;
+  --accent: #1e3fae;
   --on-accent: #ffffff;
-  --shadow: 0 1px 2px rgba(15, 27, 45, 0.06), 0 4px 12px rgba(15, 27, 45, 0.04);
+  --shadow: 0 1px 2px rgba(20, 23, 31, 0.06), 0 6px 16px rgba(20, 23, 31, 0.05);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #111110;
-  --surface: #1a1a18;
-  --surface-2: #232320;
-  --line: #2e2e2a;
-  --fg: #f2f0ea;
-  --muted: #a19d93;
-  --faint: #6f6c64;
-  --cobrando: #f5a524;
-  --cobrando-tint: #2a2010;
-  --pagada: #3dd68c;
-  --pagada-tint: #12261c;
+  --bg: #111318;
+  --surface: #1a1d24;
+  --surface-2: #232730;
+  --line: #2f3440;
+  --fg: #f1f3f7;
+  --muted: #a0a8b6;
+  --faint: #6b7382;
+  --cobrando: #fb923c;
+  --cobrando-tint: #2b1c10;
+  --pagada: #7c9bff;
+  --pagada-tint: #1a2342;
+  --maiz: #f2b705;
   --danger: #f97066;
-  --accent: #f2f0ea;
-  --on-accent: #111110;
+  --accent: #7c9bff;
+  --on-accent: #0d1020;
   --shadow: none;
   color-scheme: dark;
 }
@@ -55,7 +60,9 @@
   --color-danger: var(--danger);
   --color-accent: var(--accent);
   --color-on-accent: var(--on-accent);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-maiz: var(--maiz);
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -73,9 +80,12 @@ body {
 }
 
 .money {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
+.display { font-family: var(--font-display); letter-spacing: -0.02em; }
+h1, h2 { font-family: var(--font-display); letter-spacing: -0.02em; }
 
 @keyframes draw {
   from { stroke-dashoffset: 30; }
@@ -96,7 +106,7 @@ input[type="number"] { -moz-appearance: textfield; }
   30% { transform: scale(1.04); background: var(--pagada); }
   100% { transform: scale(1); }
 }
-.paid-pop { animation: paid-pop 1.6s ease-out; }
+.paid-pop { animation: paid-pop 1.2s ease-out; }
 .paid-pop, .paid-pop * { color: #fff !important; }
 @keyframes toast-in {
   0% { transform: translate(-50%, -24px); opacity: 0; }
@@ -105,3 +115,19 @@ input[type="number"] { -moz-appearance: textfield; }
   100% { transform: translate(-50%, -12px); opacity: 0; }
 }
 .toast { animation: toast-in 4.2s ease-out forwards; }
+
+@keyframes stamp-in {
+  0% { transform: scale(1.6); opacity: 0; }
+  60% { transform: scale(0.94); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.stamp-in > * { animation: stamp-in 280ms cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes maiz-flash {
+  0% { box-shadow: 0 0 0 0 rgba(242, 183, 5, 0.9); }
+  100% { box-shadow: 0 0 0 22px rgba(242, 183, 5, 0); }
+}
+.maiz-flash { animation: maiz-flash 700ms ease-out; }
+/* Ticket edge for people cards */
+@media (prefers-reduced-motion: reduce) {
+  .stamp-in > *, .paid-pop, .maiz-flash, .toast, .check-draw path { animation-duration: 1ms !important; }
+}
