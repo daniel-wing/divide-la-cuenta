@@ -7,6 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import type { BillView, Participant, PaymentMethod } from "@/lib/types";
 import SeatMap, { Check, PaidStamp, tableRatio } from "@/components/SeatMap";
 import { money } from "@/lib/format";
+import { seatLetter } from "@/lib/restaurant";
 import { PinForm, useWaiter } from "@/components/Waiter";
 
 const METHOD_LABEL: Record<PaymentMethod, string> = { codi: "CoDi", efectivo: "Efectivo", tarjeta: "Tarjeta" };
@@ -72,6 +73,9 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
   const [bill, setBill] = useState<BillView | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [zoom, setZoom] = useState<Participant | null>(null);
+  const [phone, setPhone] = useState("");
+  const [push, setPush] = useState<{ state: "idle" | "sending" | "sent" | "error"; msg?: string }>({ state: "idle" });
+  const [checking, setChecking] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [justPaid, setJustPaid] = useState<Set<string>>(new Set());
   const seen = useRef<Set<string> | null>(null);
@@ -111,6 +115,23 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
     setBill(b);
   }
 
+  async function verify() {
+    const res = await fetch(`/api/bills/${id}/verify`, { method: "POST" }).catch(() => null);
+    if (res?.ok) load();
+  }
+
+  async function sendPush(p: Participant) {
+    setPush({ state: "sending" });
+    const res = await fetch(`/api/bills/${id}/push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numRef: p.numRef, phone }),
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    if (res?.ok) setPush({ state: "sent" });
+    else setPush({ state: "error", msg: data.error || "No se pudo enviar. Usa el QR." });
+  }
+
   useEffect(() => {
     load();
     const t = setInterval(load, 2000);
@@ -121,6 +142,21 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     if (zoom && bill?.payments[zoom.numRef]) setZoom(null);
   }, [bill, zoom]);
+
+  useEffect(() => {
+    setPush({ state: "idle" });
+  }, [zoom]);
+
+  // Safety net: besides the webhook, ask pey directly every few seconds while something is unpaid.
+  const open = bill ? !bill.demo && Object.keys(bill.payments).length < bill.participants.length : false;
+  useEffect(() => {
+    if (!open) return;
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") verify();
+    }, 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setZoom(null);
@@ -148,6 +184,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
   const seatMode = Boolean(bill.table) && !single && bill.participants.every((p) => typeof p.seat === "number" && p.seat < capacity);
   const bySeat = new Map(bill.participants.map((p) => [p.seat, p]));
   const codiCount = Object.values(bill.payments).filter((x) => (x.method ?? "codi") === "codi").length;
+  const closedIn = done ? Math.max(...Object.values(bill.payments).map((x) => x.paidAt)) - bill.createdAt : 0;
   const title = bill.table ? `Mesa ${bill.table}` : bill.concept;
 
   async function post(path: string, body: object) {
@@ -218,7 +255,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                 {bill.table ? `Mesa ${bill.table} pagada` : "Cuenta saldada"}
               </h1>
               <p className="text-[17px] text-white/85">
-                <span className="money font-semibold text-white">{money(bill.total)}</span> · {codiCount} de {n} con CoDi
+                <span className="money font-semibold text-white">{money(bill.total)}</span> en {dur(closedIn)} · {codiCount} de {n} con CoDi
               </p>
             </div>
           </div>
@@ -329,7 +366,7 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                         pay ? "bg-pagada" : "bg-cobrando"
                       }`}
                     >
-                      {pay ? <Check className="h-4 w-4" /> : (p.seat ?? 0) + 1}
+                      {pay ? <Check className="h-4 w-4" /> : seatLetter(p.seat ?? 0)}
                     </span>
                     <span className="min-w-[96px] flex-1 truncate text-[17px] font-medium">{p.name}</span>
                     <span className="money text-[17px] font-semibold">{money(p.amount)}</span>
@@ -402,23 +439,42 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
               return (
                 <li key={p.numRef} className="text-[15px]">
                   <span className="money text-muted">{timeS(pay.paidAt)}</span> · {p.name} pagó <span className="money">{money(p.amount)}</span>{" "}
-                  {codi ? "con CoDi" : `en ${METHOD_LABEL[pay.method!].toLowerCase()}, marcado por el mesero`}
+                  {codi ? (pay.via === "pn" ? "con CoDi, cobro enviado a su celular" : "con CoDi") : `en ${METHOD_LABEL[pay.method!].toLowerCase()}, marcado por el mesero`}
                   {codi && (
                     <span className="text-muted">
                       {" "}
+                      · {dur(pay.paidAt - bill.createdAt)} después de generar su cobro
                       {bill.demo
-                        ? "· pago simulado (modo demo)"
-                        : lag !== null && lag >= 0 && lag < 120000
-                          ? `· pey avisó en ${dur(lag)}`
-                          : "· confirmado por webhook de pey"}
+                        ? " · pago simulado (modo demo)"
+                        : pay.source === "consulta"
+                          ? " · confirmado al consultar a pey"
+                          : lag !== null && lag >= 0 && lag < 120000
+                            ? ` · pey avisó por webhook en ${dur(lag)}`
+                            : " · confirmado por webhook de pey"}
                     </span>
                   )}
                 </li>
               );
             })}
-          {done && <li className="text-[15px] font-semibold text-pagada">{bill.table ? "Mesa cobrada" : "Cuenta cobrada"}</li>}
+          {done && <li className="text-[15px] font-semibold text-pagada">{bill.table ? "Mesa cobrada" : "Cuenta cobrada"} en {dur(closedIn)}</li>}
         </ol>
       </section>
+
+      {waiter && !done && !bill.demo && (
+        <div className="mt-8 text-center">
+          <button
+            disabled={checking}
+            onClick={async () => {
+              setChecking(true);
+              await verify();
+              setChecking(false);
+            }}
+            className="h-11 rounded-[10px] bg-surface-2 px-5 text-[15px] font-medium transition-colors hover:bg-line disabled:opacity-50"
+          >
+            {checking ? "Consultando a pey..." : "Verificar pagos con pey"}
+          </button>
+        </div>
+      )}
 
       {bill.table && waiter && (done || bill.demo) && (
         <div className="mt-8 text-center">
@@ -481,6 +537,39 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
               />
             </div>
             <p className="mt-2 text-[15px] text-[#5b6474]">Escanéalo con CoDi en la app de tu banco</p>
+            <div className="mt-4 rounded-[12px] bg-[#f3f4f6] p-3 text-left">
+              <p className="text-[13px] font-medium text-[#14171f]">¿Sin escanear? Recibe el cobro en la app de tu banco</p>
+              {push.state === "sent" ? (
+                <p className="mt-2 text-[15px] font-semibold text-pagada">Cobro enviado. Abre la app de tu banco y acéptalo.</p>
+              ) : (
+                <form
+                  className="mt-2 flex gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    sendPush(zoom);
+                  }}
+                >
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    placeholder="Tu celular, 10 dígitos"
+                    aria-label="Tu celular, 10 dígitos"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    className="h-11 min-w-0 flex-1 rounded-[10px] border border-[#d5d8de] bg-white px-3 text-[17px] text-[#14171f] outline-none focus:border-[#1e3fae]"
+                  />
+                  <button
+                    disabled={phone.length !== 10 || push.state === "sending"}
+                    className="h-11 shrink-0 rounded-[10px] bg-[#1e3fae] px-4 text-[15px] font-semibold text-white disabled:opacity-40"
+                  >
+                    {push.state === "sending" ? "Enviando..." : "Enviar"}
+                  </button>
+                </form>
+              )}
+              {push.state === "error" && <p className="mt-2 text-[13px] text-[#b42318]">{push.msg}</p>}
+              <p className="mt-2 text-[12px] text-[#5b6474]">Tu número solo se usa para enviar este cobro y no se guarda.</p>
+            </div>
             {canManage && <div className="mt-3 [&_button]:text-[#14171f]">{manualButtons(zoom, true)}</div>}
             <button onClick={() => setZoom(null)} className="mt-3 text-[15px] text-[#5b6474] hover:underline">
               Cerrar
