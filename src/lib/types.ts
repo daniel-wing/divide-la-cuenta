@@ -4,6 +4,7 @@ export type Participant = {
   numRef: string; // 7 digits, unique, sent to pey
   qrId: string; // IDC from Banxico (or demo id)
   qrString: string; // payload to draw the QR
+  seat?: number; // position around the table (0 = top left, clockwise), as the waiter sees it
 };
 
 export type PaymentMethod = "codi" | "efectivo" | "tarjeta";
@@ -23,6 +24,7 @@ export type Bill = {
   tipPct: number; // e.g. 10 for 10%
   total: number; // subtotal + tip
   table?: number; // restaurant table number, if any
+  seatCount?: number; // seats drawn around the table
   createdAt: number;
   demo: boolean;
   participants: Participant[];

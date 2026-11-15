@@ -1,7 +1,12 @@
 // Demo restaurant setup. Tables listed here as "fake" are placeholders for the
 // demo; any table with a real bill shows its live status instead.
 export const RESTAURANT_NAME = "Wingman Dinner";
+export const APP_NAME = "Dividí";
 export const TABLE_COUNT = 8;
+
+/** Seats per table: half the room are square tables of 4, the rest are larger. */
+export const TABLE_SEATS: Record<number, number> = { 1: 4, 2: 4, 3: 4, 4: 4, 5: 6, 6: 6, 7: 8, 8: 8 };
+export const seatsFor = (table?: number) => (table && TABLE_SEATS[table]) || 4;
 
 export type FakeStatus = { status: "libre" | "ocupada" | "pagada"; amount?: number; guests?: number };
 
@@ -13,5 +18,5 @@ export const FAKE_TABLES: Record<number, FakeStatus> = {
   5: { status: "ocupada", amount: 2310, guests: 6 },
   6: { status: "ocupada", amount: 1600, guests: 4 },
   7: { status: "libre" },
-  8: { status: "ocupada", amount: 530, guests: 1 },
+  8: { status: "ocupada", amount: 1930, guests: 6 },
 };
