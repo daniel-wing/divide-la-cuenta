@@ -167,6 +167,9 @@ export default function Home() {
         <button onClick={lock} className="h-10 rounded-[10px] bg-surface-2 px-4 text-[15px] font-medium hover:bg-line">
           Bloquear (modo comensal)
         </button>
+        <Link href="/qr-mesas" className="flex h-10 items-center rounded-[10px] bg-surface-2 px-4 text-[15px] font-medium hover:bg-line">
+          QR de las mesas
+        </Link>
         {hasSample && <p className="text-[13px] text-faint">* Total simulado: incluye el consumo de las mesas de ejemplo.</p>}
       </div>
     </main>

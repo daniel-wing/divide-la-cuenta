@@ -290,6 +290,12 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
         </section>
       )}
 
+      {bill.table && !done && waiter && (
+        <p className="mt-4 text-[14px] text-muted">
+          Los comensales también pueden pagar desde su celular con el QR impreso de la Mesa {bill.table}.
+        </p>
+      )}
+
       {bill.table && !done && (
         <p className="mt-4 rounded-[12px] border border-pagada/25 bg-pagada-tint px-4 py-3 text-[15px] text-fg">
           <span className="font-semibold text-pagada">Paga con CoDi y apoya a este lugar.</span> Con tarjeta, el restaurante paga comisión por
@@ -345,6 +351,9 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                     <p className="mt-1 max-w-[84px] truncate text-[12px] font-medium text-muted sm:max-w-[128px] sm:text-[13px]">
                       {p.name} · <span className="money">{money(p.amount)}</span>
                     </p>
+                    {!pay && bill.claims?.[p.numRef] && (
+                      <p className="text-[11px] font-semibold text-cobrando sm:text-[12px]">En proceso en un celular</p>
+                    )}
                   </div>
                 );
               }}
@@ -388,7 +397,19 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
                         PAGADO · {METHOD_LABEL[pay.method ?? "codi"]} · {time(pay.paidAt)}
                       </span>
                     ) : (
-                      <div className="w-full sm:w-auto">{manualButtons(p)}</div>
+                      <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                        {bill.claims?.[p.numRef] && (
+                          <span className="text-[13px] font-semibold text-cobrando">
+                            En proceso en un celular
+                            {waiter && (
+                              <button onClick={() => post("claim", { numRef: p.numRef, release: true })} className="ml-2 font-medium text-muted underline">
+                                Soltar
+                              </button>
+                            )}
+                          </span>
+                        )}
+                        {manualButtons(p)}
+                      </div>
                     )}
                   </div>
                 );

@@ -137,3 +137,66 @@ export async function addPush(billId: string, numRef: string, transactionId: str
   const list = await getPushes(billId, numRef);
   await set(`push:${billId}:${numRef}`, JSON.stringify([...list, transactionId]));
 }
+
+/**
+ * "En proceso": a guest tapped a seat on their own phone. Other phones see it as taken
+ * until that guest pays, lets it go, or CLAIM_SECONDS pass. Each seat keeps its own
+ * CoDi charge, so even if two people pay the same seat the second payment is visible.
+ */
+export const CLAIM_SECONDS = 180;
+type Claim = { token: string; until: number };
+const memClaims = (g as unknown as { __claims?: Map<string, Claim> }).__claims ??
+  ((g as unknown as { __claims?: Map<string, Claim> }).__claims = new Map());
+
+async function readClaim(billId: string, numRef: string): Promise<Claim | null> {
+  const key = k(`claim:${billId}:${numRef}`);
+  if (redis) {
+    const v = await redis.get<unknown>(key);
+    if (v == null) return null;
+    return (typeof v === "string" ? JSON.parse(v) : v) as Claim;
+  }
+  const c = memClaims.get(key);
+  if (!c || c.until <= Date.now()) {
+    memClaims.delete(key);
+    return null;
+  }
+  return c;
+}
+
+/** Takes a seat for this phone. Returns false if another phone holds it. Renews it if it is ours. */
+export async function claimSeat(billId: string, numRef: string, token: string): Promise<boolean> {
+  const key = k(`claim:${billId}:${numRef}`);
+  const claim: Claim = { token, until: Date.now() + CLAIM_SECONDS * 1000 };
+  const current = await readClaim(billId, numRef);
+  if (current && current.token !== token) return false;
+  if (redis) {
+    if (current) {
+      await redis.set(key, JSON.stringify(claim), { ex: CLAIM_SECONDS });
+      return true;
+    }
+    return (await redis.set(key, JSON.stringify(claim), { nx: true, ex: CLAIM_SECONDS })) === "OK";
+  }
+  memClaims.set(key, claim);
+  return true;
+}
+
+/** Lets a seat go. Only the phone that holds it (or the waiter, with force) can do it. */
+export async function releaseSeat(billId: string, numRef: string, token: string | null, force = false) {
+  const current = await readClaim(billId, numRef);
+  if (!current || (!force && current.token !== token)) return;
+  const key = k(`claim:${billId}:${numRef}`);
+  if (redis) await redis.del(key);
+  else memClaims.delete(key);
+}
+
+/** Who holds each seat right now, without exposing the tokens. */
+export async function getClaims(bill: Bill): Promise<Record<string, Claim>> {
+  const out: Record<string, Claim> = {};
+  await Promise.all(
+    bill.participants.map(async (p) => {
+      const c = await readClaim(bill.id, p.numRef);
+      if (c) out[p.numRef] = c;
+    })
+  );
+  return out;
+}

@@ -34,4 +34,6 @@ export type Bill = {
 
 export type BillView = Bill & {
   payments: Record<string, Payment>; // keyed by numRef
+  claims?: Record<string, number>; // numRef -> unix ms until the seat is free again ("en proceso" on a guest's phone)
+  mine?: string[]; // numRefs held by the phone that asked (only when it sent its token)
 };
