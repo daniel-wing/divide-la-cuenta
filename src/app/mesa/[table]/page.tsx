@@ -5,6 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import type { BillView, Participant } from "@/lib/types";
 import { Check, PaidStamp } from "@/components/SeatMap";
 import { money } from "@/lib/format";
+import { VERIFY_FAST_MS } from "@/lib/timing";
 import { seatLetter } from "@/lib/restaurant";
 
 // The guest's own phone. They get here by scanning the QR printed on their table (/mesa/N),
@@ -89,14 +90,26 @@ export default function MesaPage({ params }: { params: Promise<{ table: string }
     return () => clearInterval(t);
   }, []);
 
-  // Safety net, same as the waiter screen: ask pey directly while my seat is open.
+  // Safety net, same as the waiter screen: ask pey directly while my seat is open. The guest
+  // usually leaves this page to pay in the bank app, so we also ask the moment they come back.
+  const waiting = Boolean(billId && mine && bill && !bill.demo && !bill.payments[mine]);
   useEffect(() => {
-    if (!billId || !mine || !bill || bill.demo || bill.payments[mine]) return;
+    if (!waiting) return;
+    const check = async () => {
+      const res = await fetch(`/api/bills/${billId}/verify`, { method: "POST" }).catch(() => null);
+      if (res?.ok) load();
+    };
     const t = setInterval(() => {
-      if (document.visibilityState === "visible") fetch(`/api/bills/${billId}/verify`, { method: "POST" }).catch(() => null);
-    }, 15000);
-    return () => clearInterval(t);
-  }, [billId, mine, bill]);
+      if (document.visibilityState === "visible") check();
+    }, VERIFY_FAST_MS);
+    const onVisible = () => document.visibilityState === "visible" && check();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, billId]);
 
   async function take(p: Participant) {
     setError("");

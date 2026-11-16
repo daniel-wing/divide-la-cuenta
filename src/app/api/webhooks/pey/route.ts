@@ -46,28 +46,43 @@ export async function POST(req: Request) {
   const via = event.type === "codi.qr.payment_received" ? "qr" : event.type === "codi.pn.payment_received" ? "pn" : null;
   if (!via) return NextResponse.json({ ignored: true });
 
-  const billId = await billIdForRef(String(event.numRef));
-  if (!billId) return NextResponse.json({ ignored: "unknown numRef" });
-  const bill = await getBill(billId);
-  const p = bill?.participants.find((x) => x.numRef === String(event.numRef));
-  if (!bill || !p) return NextResponse.json({ ignored: "unknown participant" });
+  // From here on, any failure (for example the database not answering) returns 500 so pey sends
+  // the webhook again. Nothing is recorded as processed until the seat is marked paid.
+  try {
+    const billId = await billIdForRef(String(event.numRef));
+    if (!billId) return NextResponse.json({ ignored: "unknown numRef" });
+    const bill = await getBill(billId);
+    const p = bill?.participants.find((x) => x.numRef === String(event.numRef));
+    if (!bill || !p) return NextResponse.json({ ignored: "unknown participant" });
 
-  // The amount must cover this guest's share.
-  if (Number(event.amount) < p.amount - 0.005) {
-    console.error("pey webhook: amount below the share", event.amount, p.amount, event.transactionId);
-    return NextResponse.json({ ignored: "amount mismatch" });
+    // The amount must cover this guest's share.
+    if (Number(event.amount) < p.amount - 0.005) {
+      console.error("pey webhook: amount below the share", event.amount, p.amount, event.transactionId);
+      return NextResponse.json({ ignored: "amount mismatch" });
+    }
+
+    const existing = bill.payments[p.numRef];
+    if (existing) {
+      // Same payment delivered twice, or already found by our own re-check against pey.
+      if (existing.transactionId === event.transactionId) return NextResponse.json({ duplicate: true });
+      // A second, different payment for a seat that was already paid. Logged so it can be found.
+      console.warn("pey webhook: second payment for a paid seat", billId, p.numRef, event.transactionId, existing.transactionId);
+      await claimTransaction(event.transactionId);
+      return NextResponse.json({ ignored: "seat already paid" });
+    }
+
+    const marked = await markPaid(billId, p.numRef, {
+      paidAt: (event.datePaid ?? Date.now() / 1000) * 1000,
+      transactionId: event.transactionId,
+      amount: event.amount,
+      receivedAt: Date.now(),
+      via,
+      source: "webhook",
+    });
+    await claimTransaction(event.transactionId);
+    return NextResponse.json(marked ? { ok: true } : { duplicate: true });
+  } catch (err) {
+    console.error("pey webhook: could not record the payment, pey will retry", event.transactionId, err);
+    return NextResponse.json({ error: "temporary failure" }, { status: 500 });
   }
-
-  // Same payment delivered twice? Process it only once.
-  if (!(await claimTransaction(event.transactionId))) return NextResponse.json({ duplicate: true });
-
-  await markPaid(billId, p.numRef, {
-    paidAt: (event.datePaid ?? Date.now() / 1000) * 1000,
-    transactionId: event.transactionId,
-    amount: event.amount,
-    receivedAt: Date.now(),
-    via,
-    source: "webhook",
-  });
-  return NextResponse.json({ ok: true });
 }

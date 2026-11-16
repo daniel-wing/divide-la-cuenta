@@ -17,7 +17,7 @@ Dividí es una app web para restaurantes. El mesero toca la mesa y la app genera
 | Un cobro CoDi por lugar, con `numRef` único y `metadata` de la mesa | `POST /codi/qr` |
 | Cobro enviado a la app del banco del comensal, sin escanear (CoDi por notificación) | `POST /codi/pn` |
 | Confirmación del pago en el servidor: firma verificada (Standard Webhooks), sin duplicados por `transactionId` y validando el monto | Webhooks `codi.qr.payment_received` y `codi.pn.payment_received` |
-| Red de seguridad: si un webhook se retrasa o se pierde, el servidor le pregunta a pey por cada cobro pendiente, cada 15 segundos o cuando el mesero toca "Verificar pagos con pey" | `GET /transaction/codi/qr/:id` y `GET /transaction/:id` |
+| Red de seguridad: si un webhook se retrasa o se pierde, el servidor le pregunta a pey por cada cobro pendiente. Cada 5 segundos mientras alguien está pagando, cada 15 el resto del tiempo, al volver de la app del banco y cuando el mesero toca "Verificar pagos con pey". Con tiempo límite y reintentos si pey tarda o falla | `GET /transaction/codi/qr/:id` y `GET /transaction/:id` |
 
 El pago nunca se confirma en el navegador. La bitácora de cada mesa dice cómo se confirmó cada pago: por webhook (y en cuántos segundos avisó pey) o por consulta. Con una API key real, un webhook sin firma se rechaza. El celular para el cobro por notificación se manda a pey y no se guarda.
 
@@ -64,6 +64,12 @@ npm run dev
 ```
 
 Sin `PEY_API_KEY` la app corre en modo demo: los QR son falsos y aparece el botón "Simular CoDi".
+
+Pruebas del aviso de pago contra un pey simulado (no usa la llave real ni hace pagos):
+
+```bash
+npm run build && npm run prueba:pey
+```
 
 | Variable | Para qué |
 | --- | --- |

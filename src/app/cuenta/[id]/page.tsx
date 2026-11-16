@@ -7,6 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import type { BillView, Participant, PaymentMethod } from "@/lib/types";
 import SeatMap, { Check, PaidStamp, tableRatio } from "@/components/SeatMap";
 import { money } from "@/lib/format";
+import { VERIFY_FAST_MS, VERIFY_SLOW_MS } from "@/lib/timing";
 import { RESTAURANT_NAME, seatLetter } from "@/lib/restaurant";
 import { PinForm, useWaiter } from "@/components/Waiter";
 
@@ -158,16 +159,24 @@ export default function CuentaPage({ params }: { params: Promise<{ id: string }>
     setPush({ state: "idle" });
   }, [zoom]);
 
-  // Safety net: besides the webhook, ask pey directly every few seconds while something is unpaid.
+  // Safety net: besides the webhook, ask pey directly while something is unpaid. More often while
+  // someone is paying (a QR is open, a charge went to a phone, or a guest holds a seat), and right
+  // away when the screen comes back to the front.
   const open = bill ? !bill.demo && Object.keys(bill.payments).length < bill.participants.length : false;
+  const hot = open && (zoom !== null || push.state === "sent" || Object.keys(bill?.claims ?? {}).length > 0);
   useEffect(() => {
     if (!open) return;
     const t = setInterval(() => {
       if (document.visibilityState === "visible") verify();
-    }, 15000);
-    return () => clearInterval(t);
+    }, hot ? VERIFY_FAST_MS : VERIFY_SLOW_MS);
+    const onVisible = () => document.visibilityState === "visible" && verify();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, id]);
+  }, [open, hot, id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setZoom(null);
