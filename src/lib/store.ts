@@ -200,3 +200,24 @@ export async function getClaims(bill: Bill): Promise<Record<string, Claim>> {
   );
   return out;
 }
+
+/**
+ * Short lock so many phones looking at the same table do not all ask pey at once.
+ * Returns true for the first caller in each window of `seconds`.
+ */
+const memLocks = (g as unknown as { __locks?: Map<string, number> }).__locks ??
+  ((g as unknown as { __locks?: Map<string, number> }).__locks = new Map());
+export async function tryLock(rawKey: string, seconds: number): Promise<boolean> {
+  const key = k(`lock:${rawKey}`);
+  if (redis) return (await redis.set(key, "1", { nx: true, ex: seconds })) === "OK";
+  const until = memLocks.get(key);
+  if (until && until > Date.now()) return false;
+  memLocks.set(key, Date.now() + seconds * 1000);
+  return true;
+}
+
+export async function releaseLock(rawKey: string) {
+  const key = k(`lock:${rawKey}`);
+  if (redis) await redis.del(key);
+  else memLocks.delete(key);
+}
